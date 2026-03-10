@@ -38,31 +38,33 @@ my-company/
 ## What You Can Do After Init
 
 **"Add user notifications to the platform"**
-→ Claude knows which projects need changes, where the relevant code lives, and how they connect
+> Claude knows which projects need changes, where the relevant code lives, and how they connect
 
-**"Create a ticket for rate limiting"**
-→ Claude reads the architecture docs, explores the actual code, then writes a detailed implementation plan with specific file paths
+**"/lore-ticket rate limiting for the API"**
+> Creates an architectural implementation plan with specific file paths, ordered by dependency, optimized for plan mode
 
 **"How does authentication work?"**
-→ Claude explains the flow across all your services with file references
+> Claude explains the flow across all your services with file references
 
 **"What would break if I change the user schema?"**
-→ Claude traces the impact across projects
+> Claude traces the impact across projects
 
-## Commands
+## Skills
 
-| Command | Description |
-|---------|-------------|
+| Skill | Description |
+|-------|-------------|
 | `/lore-init` | Scan all projects, generate full documentation |
 | `/lore-update` | Update docs after code changes |
+| `/lore-ticket [description]` | Create architectural implementation tickets |
 
-## Cross-Project Tickets
+## Tickets for Plan Mode
 
-When you ask for a feature that spans multiple services, Claude creates tickets in `tickets/cross-project/` with:
-- Implementation steps for each affected project
-- The order to make changes
-- Integration points and potential issues
+Tickets created by `/lore-ticket` are designed as input for Claude Code's plan mode:
+- No code snippets — architectural decisions and rationale only
 - Specific file paths to modify
+- Implementation steps ordered by dependency
+- Cross-service integration points and edge cases
+- Frontend tickets reference the `/frontend-design` skill
 
 ## Supported Tech Stacks
 
@@ -77,6 +79,8 @@ When you ask for a feature that spans multiple services, Claude creates tickets 
 | `Cargo.toml` | Rust |
 | `Gemfile` | Ruby |
 | `composer.json` | PHP |
+| `Dockerfile` | Containerized services |
+| `nx.json` / `turbo.json` / `lerna.json` | Monorepos |
 
 ## License
 
