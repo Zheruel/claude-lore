@@ -12,9 +12,9 @@ Ultrathink deeply about the architectural implications before writing anything. 
 
 ## Before Writing
 
-1. **Read the architecture docs** — `CLAUDE.md`, `OVERVIEW.md`, and relevant `services/*.md` files to understand the current system state
-2. **Explore the actual code** — Launch Explore agents (using the Agent tool with `subagent_type: Explore`) to understand current implementation in the affected projects. Don't rely only on docs — look at the real code.
-3. **Map the impact** — Identify every service, database, API, and integration point that this feature touches
+1. **Read `CLAUDE.md`** — get the projects table, cross-project edges, and key locations. This is your map.
+2. **Explore the actual code** — Launch Explore agents (`subagent_type: Explore`) for each project that might be affected. The code is the source of truth; `CLAUDE.md` is just an index into it. Always re-explore.
+3. **Map the impact** — Identify every service, database, API, and integration point that this feature touches.
 
 ## Ticket Format
 
@@ -78,11 +78,9 @@ See [example.md](example.md) for a calibration example of the quality, specifici
 
 ## After Writing
 
-Save the ticket to:
-- `tickets/[project-name]/[feature-name].md` — if it affects a single project
-- `tickets/cross-project/[feature-name].md` — if it spans multiple projects
+Save the ticket at `tickets/[feature-name].md` (kebab-case). The ticket's `Affected Services` table is what tells you which repos it touches.
 
-Use kebab-case for filenames.
+The intended execution workflow: the user pastes the *entire* ticket into Claude Code plan mode inside each affected service repo. Each repo's plan mode produces the per-service implementation plan with full local context. Write the ticket as a single shared brief that travels well across all affected services.
 
 ## Validation
 

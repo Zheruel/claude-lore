@@ -1,10 +1,15 @@
 # Claude Lore
 
-Turn CLAUDE.md into a living system brain that understands your entire multi-project codebase.
+Two artifacts that keep Claude Code grounded in your multi-project codebase: a lean index Claude loads each session, and a rich HTML report humans actually read.
 
-## What It Does
+## What it does
 
-Claude Lore scans all projects in your codebase, maps their relationships, and generates comprehensive documentation that Claude Code loads automatically. Every future session starts with full context about your system architecture, tech stacks, and how everything connects.
+Claude Lore scans every project in your codebase, maps the relationships between them, and generates two things:
+
+- **`CLAUDE.md`** — a lean index that Claude Code loads automatically. Projects table, external services, a small cross-project diagram, key locations. Optimized for fast loading, not human browsing.
+- **`architecture.html`** — a single self-contained HTML file with the full architecture documentation: system overview, diagrams, data flows, per-project deep dives, external services, patterns. Open it in a browser. This is what humans read.
+
+Tickets created by `/lore-ticket` re-explore the live code each time, so they're always grounded in current reality.
 
 ## Quick Start
 
@@ -14,59 +19,53 @@ cd architecture && claude
 /lore-init
 ```
 
-## What You Get
+## What you get
 
 ```
 my-company/
 ├── architecture/
-│   ├── CLAUDE.md         # System context (auto-loaded by Claude)
-│   ├── OVERVIEW.md       # Architecture diagrams and data flows
-│   ├── services/
-│   │   ├── api.md        # Per-project documentation
-│   │   ├── frontend.md
-│   │   └── external/
-│   │       └── stripe.md # External service docs
-│   └── tickets/
-│       ├── api/
-│       ├── frontend/
-│       └── cross-project/
+│   ├── CLAUDE.md          # Lean index, auto-loaded by Claude
+│   ├── architecture.html  # Rich human-facing architecture report
+│   └── tickets/           # Flat folder, one ticket per file
+│       └── add-rate-limiting.md
 ├── api/
 ├── frontend/
 └── ...
 ```
 
-## What You Can Do After Init
+The HTML report holds the rich documentation; the lean `CLAUDE.md` is for Claude.
 
-**"Add user notifications to the platform"**
-> Claude knows which projects need changes, where the relevant code lives, and how they connect
+## What you can do after init
 
-**"/lore-ticket rate limiting for the API"**
-> Creates an architectural implementation plan with specific file paths, ordered by dependency, optimized for plan mode
+**`/lore-ticket rate limiting for the API`**
+> Re-explores the live code across affected services and writes an architectural ticket optimized for plan mode. A senior-architect agent then reviews it against the live code.
+
+**Open `architecture.html`**
+> Browse the full architecture: diagrams, data flows, per-project deep dives, external services.
 
 **"How does authentication work?"**
-> Claude explains the flow across all your services with file references
+> Claude has the lean index and re-explores the actual code to answer.
 
-**"What would break if I change the user schema?"**
-> Claude traces the impact across projects
+**"Add user notifications to the platform"**
+> Claude knows which projects to look at and traces the impact across them.
+
+## The intended ticket workflow
+
+1. Run `/lore-ticket "the feature description"` inside the architecture folder.
+2. The skill re-explores the live code in every affected project and writes one shared architectural ticket at `tickets/[feature-name].md`. The ticket-validator agent reviews it.
+3. Open Claude Code in plan mode inside each affected service repo and paste the *whole* ticket. Each repo's plan mode produces the per-service implementation plan with full cross-service context plus its own local context.
+
+That's why tickets aren't split per service — every service benefits from seeing the whole shared brief.
 
 ## Skills
 
 | Skill | Description |
 |-------|-------------|
-| `/lore-init` | Scan all projects, generate full documentation |
-| `/lore-update` | Update docs after code changes |
-| `/lore-ticket [description]` | Create architectural implementation tickets |
+| `/lore-init` | Scan all projects, write the lean `CLAUDE.md` and the rich `architecture.html` |
+| `/lore-update` | Re-scan and regenerate both artifacts |
+| `/lore-ticket [description]` | Create an architectural implementation ticket |
 
-## Tickets for Plan Mode
-
-Tickets created by `/lore-ticket` are designed as input for Claude Code's plan mode:
-- No code snippets — architectural decisions and rationale only
-- Specific file paths to modify
-- Implementation steps ordered by dependency
-- Cross-service integration points and edge cases
-- Frontend tickets reference the `/frontend-design` skill
-
-## Supported Tech Stacks
+## Supported tech stacks
 
 | Marker | Stack |
 |--------|-------|

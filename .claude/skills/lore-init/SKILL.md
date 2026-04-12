@@ -1,18 +1,19 @@
 ---
 name: lore-init
-description: Scan all sibling projects and generate comprehensive architecture documentation for multi-project codebases
+description: Scan all sibling projects and generate a lean CLAUDE.md index plus a self-contained architecture.html report
 disable-model-invocation: true
 ---
 
 # Lore Init
 
-Generate architecture documentation for a multi-project codebase.
+Scan a multi-project codebase and produce two artifacts: a lean `CLAUDE.md` for Claude to load each session, and a self-contained `architecture.html` for humans to read in a browser.
 
-Ultrathink before beginning your analysis. You are mapping an entire system — take the time to deeply understand how everything connects before writing anything.
+Ultrathink before beginning. You are mapping an entire system — understand how everything connects before writing anything.
 
-## Goal
+## Two outputs, two audiences
 
-Scan all sibling projects in the parent directory, understand their structure, relationships, and external dependencies, then generate comprehensive documentation that enables effective cross-service feature planning.
+- **`CLAUDE.md`** is for Claude. Lean, fast to load, no prose padding. Just the facts a plan-mode session needs to orient itself.
+- **`architecture.html`** is for humans. Rich, navigable, browser-rendered. The full architecture documentation lives here.
 
 ## Discovery
 
@@ -37,55 +38,37 @@ Also detect monorepo patterns: Nx (`nx.json`), Turborepo (`turbo.json`), Lerna (
 
 ## Exploration
 
-**Launch parallel Explore agents** (using the Agent tool with `subagent_type: Explore`) for each discovered project. Each agent should gather:
+Launch parallel Explore agents (Agent tool with `subagent_type: Explore`) for each discovered project. Each agent gathers:
 
-- Basic info (name, tech stack, purpose)
-- Directory structure and key files
-- Entry points and configuration
-- Major dependencies
-- Architecture patterns (MVC, CQRS, microservices, etc.)
-- External services used (databases, APIs, cloud services, message queues)
-- Development commands (run, test, build, lint)
-- Environment variables and their purposes
+- Name, tech stack, one-line purpose
+- Directory structure and key entry points
+- Major dependencies and architecture patterns
+- External services used (databases, APIs, queues, cloud)
+- API endpoints (if applicable)
+- Environment variables
+- Dev commands (run, test, build)
 
-After all agents return, analyze the combined results to detect relationships between projects:
-- API calls between services (look for HTTP clients, gRPC definitions, OpenAPI specs)
+After agents return, analyze the combined results to detect cross-project relationships:
+
+- API or RPC calls between services
 - Shared types, models, or contracts
-- Database connections (shared databases, read replicas)
-- Message queues and event-driven patterns
+- Shared databases or read replicas
+- Message queues and event patterns
 - Authentication flows that span services
 - Shared environment variables pointing to the same resources
 
-Check for `external-services.yaml` in any project or the architecture folder for manually defined services.
+Check for an `external-services.yaml` in any project or in the architecture folder for manually-declared services.
 
-## Formatting
+## Output 1 — `CLAUDE.md` (lean index for Claude)
 
-Use whatever format best communicates the architecture — Mermaid diagrams, ASCII art, tables, prose, or any combination. Optimize for clarity, not for any specific format. The documentation should be easy for both humans and AI to parse.
+Write `CLAUDE.md` at the architecture folder root. Keep it tight: this file gets loaded into every Claude session, so every line should earn its place.
 
-General guidelines:
-- Tables for structured data (projects, endpoints, services)
-- Short paragraphs (3-4 lines max) for scannability
-- Consistent heading hierarchy
-- File paths always in backticks: `src/index.ts`
-- No abbreviations without first defining them
-- Consistent naming across all documents
-- Cross-references use exact file paths
+Required structure:
 
-## Output
-
-Generate these files:
-
-### CLAUDE.md
-
-The main reference file that Claude loads every session. Keep it concise — only include what's needed for high-level orientation. Link to `OVERVIEW.md` and `services/*.md` for depth.
-
-Structure:
-
-```markdown
+````markdown
 # [Platform Name]
 
-## System Overview
-[2-3 sentence description of the overall system]
+[One paragraph: what this system does, who it's for, the headline architecture pattern. 2-3 sentences max.]
 
 ## Projects
 
@@ -99,165 +82,117 @@ Structure:
 |---------|---------|---------|
 | ... | ... | ... |
 
-## How They Connect
+## Cross-Project Edges
 
-[Diagram showing project relationships — use whatever format communicates it best]
+```mermaid
+graph LR
+  [small diagram showing API calls, shared DBs, event flows between projects]
+```
 
 ## Key Locations
 
 **[Project] (`../[folder]/`):**
 - [Category]: `path/`
-...
+- [Category]: `path/`
+
+[Repeat per project. Only the directories a plan-mode session would want to start from. No file-level catalog — that's what live exploration is for.]
 
 ## Patterns & Conventions
 
 - [Pattern observed across projects]
-...
 
-## Building New Features
+## Human Documentation
 
-**[Feature type]:**
-1. [Step with file path]
-...
-
-## Architecture Docs
-
-- Full overview: `OVERVIEW.md`
-- Per-project details: `services/[project].md`
-- External services: `services/external/`
-
----
+For the rich, navigable architecture overview, open `architecture.html` in a browser.
 
 ## Creating Tickets
 
-Use `/lore-ticket [description]` to create implementation tickets.
+Use `/lore-ticket [description]` to create a cross-project architectural ticket.
 
-### Ticket Guidelines
-- Tickets are designed as input for Claude Code **plan mode**
-- Never include code snippets — explain **what** to do and **why**
-- Focus on architectural decisions and their rationale
-- Reference specific file paths that need modification
-- For frontend work, the ticket should note to use the `/frontend-design` skill during implementation
-- Include edge cases, integration points, and testing strategy
-- Keep it clear and concise — a good ticket is a good plan
+- Tickets are architectural plans, not code. They explain *what* each affected service needs to do and *why*, never *how* at the code level.
+- Tickets live flat at `tickets/[feature-name].md` (kebab-case).
+- The intended workflow is: paste the entire ticket into Claude Code plan mode inside each affected service repo. Each repo's plan mode produces the per-service implementation plan with full local context.
+- For frontend work, the ticket should note that the `/frontend-design` skill should be used during implementation.
+````
 
-### Ticket Locations
-- `tickets/[project]/` — Single project changes
-- `tickets/cross-project/` — Multi-project features
-```
+Hard constraints:
 
-### OVERVIEW.md
+- No duplicated tech-stack prose. The projects table is the source of truth.
+- No per-service deep sections. That's what `architecture.html` and live re-exploration are for.
+- The Mermaid diagram should be small and focused on cross-project edges, not internal architecture.
 
-Detailed architecture document with:
-- System architecture diagram
-- Data flow between services
-- Authentication/authorization flow
-- Deployment architecture (if detectable)
-- Database schema overview
-- Key integration patterns
+## Output 2 — `architecture.html` (rich human-facing report)
 
-### services/[project].md
+Write `architecture.html` at the architecture folder root. Single self-contained HTML file. No build step, no toolchain, no static-site generator. Open it with `open architecture.html` and you get everything.
 
-Per-project documentation:
+### Required structure
 
-```markdown
-# [Project Name]
+A single HTML document with:
 
-## Overview
-[Role in the system]
+- `<!doctype html>`, `<head>` with title, charset, viewport, and a small inline `<style>` block
+- One `<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>` tag (pinned to a major version so old generated reports keep rendering)
+- One inline `<script>mermaid.initialize({startOnLoad: true});</script>` tag
+- A `<body>` containing the sections below
 
-## Tech Stack
-- **Runtime:** ...
-- **Framework:** ...
-- **Database:** ...
-- **Key Libraries:** ...
+### Required sections (in this order, each with an `id` for anchor navigation)
 
-## Directory Structure
-[Tree with annotations]
+1. **Overview** — system description, headline architecture pattern, what makes this codebase different
+2. **Projects** — table of all projects with name, path, tech stack, purpose, dev commands
+3. **Architecture diagram** — one or more Mermaid diagrams (`<div class="mermaid">…</div>`) showing how the projects connect — API calls, shared databases, event flows. This is the centerpiece of the report.
+4. **External services** — table or list of every external service (databases, queues, third-party APIs, cloud services) with purpose, used-by, configuration notes
+5. **Data flows** — for each major flow in the system (e.g., a user request, an event, a background job), trace the path through the projects. Mermaid sequence diagrams work well here.
+6. **Per-project deep dives** — one section per project with:
+   - Tech stack details
+   - Key files and entry points
+   - API endpoints (if applicable)
+   - Data models / key entities
+   - Environment variables
+   - Dev commands (run, test, build)
+   - Connections (calls, called by, databases, events published, events consumed)
+7. **Patterns & conventions** — patterns observed across projects (auth, error handling, logging, naming, deployment)
+8. **Building new features** — short guides for the most common feature types in this codebase, with file-path anchors
 
-## Key Files
-- `[file]` - [purpose]
+### Style and rendering
 
-## API Endpoints (if applicable)
-| Method | Path | Purpose |
-|--------|------|---------|
-| ... | ... | ... |
+- Plain semantic HTML: `<h1>`, `<h2>`, `<section>`, `<table>`, `<nav>`, `<code>`, `<pre>`
+- Small inline `<style>` block. Aim for: max-width container, readable line length, monospace for code/paths, sticky in-page nav if practical
+- Optimized for "open it and skim", not for design polish. No SPA, no JS framework, no fancy interactivity
+- Mermaid blocks render client-side via the CDN script. The file degrades gracefully to plain text if offline (Mermaid blocks just stay as text)
+- A small `<nav>` near the top with anchor links to each section so readers can jump around
 
-## Data Models
-[Key models/entities and their relationships]
+### What goes in
 
-## Configuration
-- `[config file]` - [what it configures]
+- Everything a new engineer would want to read on day one to understand the system
+- All per-project detail (tech stack, key files, endpoints, env vars, dev commands, connections)
+- All diagrams, data flows, and architecture-level explanation
 
-## Environment Variables
-| Variable | Purpose |
-|----------|---------|
-| ... | ... |
+Reference file paths, don't paste source — the HTML report is *about* the codebase, not a copy of it.
 
-## Development
-- **Run:** `[command]`
-- **Test:** `[command]`
-- **Build:** `[command]`
+## Output 3 — `tickets/` folder
 
-## Connections
-- **Calls:** [other services]
-- **Called by:** [other services]
-- **Database:** [database]
-- **Events published:** [if applicable]
-- **Events consumed:** [if applicable]
-```
+Create the `tickets/` folder at the architecture root with a single `.gitkeep` inside. Flat. Every ticket from `/lore-ticket` will live as `tickets/[feature-name].md`.
 
-### services/external/[service].md
+## Consistency check
 
-For each external service:
+Before finishing, verify:
 
-```markdown
-# [Service Name]
+- `CLAUDE.md` exists, has the projects table, the cross-project Mermaid diagram, and the key locations section
+- `architecture.html` exists, is a single self-contained file, includes the Mermaid CDN script tag, and contains all eight required sections
+- Project names match between `CLAUDE.md` and `architecture.html`
+- Every project's path in both files actually points to a real folder
 
-## Purpose
-[What it provides to the system]
-
-## Used By
-- [Project] - [how it's used]
-
-## Configuration
-- Environment variables: `[VAR]`
-- Config file: `[path]`
-
-## Local Development
-[Setup instructions, mock options, sandbox accounts]
-```
-
-### tickets/
-
-Create folder structure with `.gitkeep` files:
-```
-tickets/
-├── [project-name]/
-├── [project-name]/
-└── cross-project/
-```
-
-## Consistency Check
-
-Before finalizing, verify:
-
-- All expected files exist (CLAUDE.md, OVERVIEW.md, `services/*.md`)
-- All service docs have the same sections in the same order
-- File paths in documentation point to real locations
-- Project names match across all documents
-- CLAUDE.md is concise (no redundant information, links to detailed docs for depth)
-
-Fix any issues found.
+If any of these fail, fix them.
 
 ## Summary
 
-After generating, report:
-- Projects discovered and their tech stacks
+Report to the user:
+
+- Projects discovered (count + names)
 - External services found
-- Key relationships identified
-- Any architectural concerns or observations
+- Key cross-project relationships
+- Where the artifacts live: `CLAUDE.md` and `architecture.html`
+- Anything architecturally noteworthy or surprising you saw while exploring
 
 ---
 
-Now scan the parent directory and generate the architecture documentation.
+Now scan the parent directory and generate the two artifacts.
