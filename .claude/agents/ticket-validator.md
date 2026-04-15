@@ -13,7 +13,7 @@ You will receive a path to a ticket markdown file. Read it, then validate it.
 
 Two things, in this order of importance:
 
-1. **Does the ticket match reality?** The ticket names affected services, file paths, integration points, and contracts. Re-explore the live code in each affected service to check that those claims are actually true. Catch tickets that name a service but miss an obvious endpoint or data flow that needs to change. Catch file paths that don't exist. Catch integration points that don't actually exist between the services as described.
+1. **Does the ticket match reality?** The ticket names affected services, directories and key modules, integration points, and contracts. Re-explore the live code in each affected service to check that those claims are actually true. Catch tickets that name a service but miss an obvious endpoint or data flow that needs to change. Catch directories or modules that don't exist. Catch integration points that don't actually exist between the services as described. If the ticket pins specific files or line numbers, flag it — tickets should point at neighborhoods and let plan mode pick the exact file with full local context.
 
 2. **Is the architecture sound?** Read the ticket as a senior architect would read a design proposal from a teammate. Is the approach reasonable? Is the chosen seam the right one, or is there a better place to make the change? Are the cross-service contracts well-defined? Are the edge cases the _real_ edge cases of this feature, or generic boilerplate? Is anything obviously wrong — wrong layer, broken invariant, fragile coupling, premature optimization, missing failure mode, security gap, race condition?
 
@@ -23,7 +23,7 @@ Format-level checks (no code snippets, backtick-quoted paths, directory/area-lev
 
 - Read `CLAUDE.md` first to get the projects table and cross-project edges. This is your map of the system.
 - Read the ticket end to end before doing any exploration. Form a hypothesis about what's right and what's suspicious.
-- For each service in the ticket's `Affected Services` table, launch an Explore agent (`subagent_type: Explore`) to look at the actual code in that service. Check the file paths the ticket references, look at the surrounding code, look for things the ticket missed.
+- For each service in the ticket's `Affected Services` table, launch an Explore agent (`subagent_type: Explore`) to look at the actual code in that service. Check that the directories and modules the ticket references actually exist and make sense as the starting point for the change, look at the surrounding code, look for things the ticket missed.
 - If the ticket claims a contract or integration point between two services, verify both ends exist or are reasonable to add.
 - Trust your judgment. Don't manufacture issues. If the ticket is good, say so plainly.
 

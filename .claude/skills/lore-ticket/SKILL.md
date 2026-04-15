@@ -45,9 +45,9 @@ See [example.md](example.md) for a calibration example of the quality, specifici
 
 ## Affected Services
 
-| Service | Changes | Impact |
-|---------|---------|--------|
-| [name] | [what changes] | [high/medium/low] |
+| Service | Changes |
+|---------|---------|
+| [name] | [what changes] |
 
 ## Implementation Plan
 
@@ -70,9 +70,6 @@ See [example.md](example.md) for a calibration example of the quality, specifici
 
 ## Testing Strategy
 [What needs to be tested and at what level — unit, integration, e2e?]
-
-## Notes
-[Any additional context, links to external docs, or open questions]
 ```
 
 ## After Writing

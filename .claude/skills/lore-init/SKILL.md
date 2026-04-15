@@ -91,6 +91,8 @@ graph LR
 
 ## Key Locations
 
+_Rough starting points for live exploration, not a canonical catalog — always verify against current code before acting on them._
+
 **[Project] (`../[folder]/`):**
 - [Category]: `path/`
 - [Category]: `path/`

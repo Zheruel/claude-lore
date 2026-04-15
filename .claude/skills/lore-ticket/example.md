@@ -14,12 +14,12 @@ Implement token bucket rate limiting at the API gateway level with per-client li
 
 ## Affected Services
 
-| Service | Changes | Impact |
-|---------|---------|--------|
-| api-gateway | Rate limiting middleware, Redis integration | High |
-| auth-service | Expose client tier info for dynamic limits | Low |
-| redis | New key namespace for rate limit counters | Low |
-| frontend-dashboard | Rate limit usage display for API consumers | Medium |
+| Service | Changes |
+|---------|---------|
+| api-gateway | Rate limiting middleware, Redis integration |
+| auth-service | Expose client tier info for dynamic limits |
+| redis | New key namespace for rate limit counters |
+| frontend-dashboard | Rate limit usage display for API consumers |
 
 ## Implementation Plan
 
@@ -58,7 +58,3 @@ Implement token bucket rate limiting at the API gateway level with per-client li
 - **Integration:** Gateway → Redis → rate limit enforcement, gateway → auth-service tier lookup
 - **Load:** Verify limits hold under concurrent requests from multiple clients
 - **E2E:** Full flow from API request → 429 response → dashboard shows usage
-
-## Notes
-- Consider adding rate limit info to API documentation
-- May want webhook notifications when clients approach their limits (future enhancement, not in this ticket)
