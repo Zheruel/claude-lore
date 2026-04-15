@@ -24,8 +24,7 @@ Write the ticket as a **clear architectural plan optimized for Claude Code plan 
 
 - **Never include code snippets** — explain what to do and why, not how to write it
 - **Focus on architecture** — what changes where, why that approach, what are the tradeoffs
-- **Be specific about files** — reference exact file paths that need modification
-- **Frontend work** — if the ticket involves frontend/UI changes, note that the `/frontend-design` skill should be used during implementation
+- **Point to neighborhoods, not lines** — reference directories and key modules (e.g. `src/middleware/`) so plan mode knows where to start looking. Never pin specific line numbers, and avoid specific file names unless the file is genuinely the only plausible target. Plan mode, with full local context, is better positioned to pick the exact file and line than you are from outside the repo.
 - **Keep it concise** — every sentence should add information. No filler, no preamble
 - **Think cross-service** — trace the feature across all boundaries
 
@@ -54,7 +53,7 @@ See [example.md](example.md) for a calibration example of the quality, specifici
 
 ### 1. [Service Name] — [What to do]
 - **Why:** [Architectural reason for this change]
-- **Where:** `path/to/relevant/files`
+- **Where:** `directory/` or `area/` — the neighborhood plan mode should start from, not a pinned file
 - **What:** [Description of the changes needed]
 - **Watch out:** [Gotchas, constraints, things that could break]
 

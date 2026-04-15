@@ -111,8 +111,8 @@ Use `/lore-ticket [description]` to create a cross-project architectural ticket.
 
 - Tickets are architectural plans, not code. They explain *what* each affected service needs to do and *why*, never *how* at the code level.
 - Tickets live flat at `tickets/[feature-name].md` (kebab-case).
+- Tickets point to directories and key modules, not specific files or line numbers — plan mode picks the exact spot with full local context.
 - The intended workflow is: paste the entire ticket into Claude Code plan mode inside each affected service repo. Each repo's plan mode produces the per-service implementation plan with full local context.
-- For frontend work, the ticket should note that the `/frontend-design` skill should be used during implementation.
 ````
 
 Hard constraints:

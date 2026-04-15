@@ -31,14 +31,14 @@ Implement token bucket rate limiting at the API gateway level with per-client li
 
 ### 2. auth-service — Expose client tier information
 - **Why:** Different API clients have different rate limit tiers (free, pro, enterprise). The gateway needs this info to apply the right limits.
-- **Where:** `src/services/client-service.ts`, `src/routes/internal/`
+- **Where:** `src/services/` (client tier lookup) and `src/routes/internal/` (new internal endpoint)
 - **What:** Add an internal endpoint that returns the rate limit tier for a given API key. Cache responses since tiers change infrequently.
 - **Watch out:** This is an internal-only endpoint — must not be exposed publicly
 
 ### 3. frontend-dashboard — Usage display
 - **Why:** API consumers need visibility into their current usage and limits
 - **Where:** `src/pages/api-settings/`, `src/components/`
-- **What:** Add a usage section to the API settings page showing current request count, limit, and reset time. Use the `/frontend-design` skill during implementation.
+- **What:** Add a usage section to the API settings page showing current request count, limit, and reset time.
 - **Watch out:** Usage data should be near-real-time but doesn't need to be exact — poll every 30s, not websocket
 
 ## Integration Points

@@ -17,7 +17,7 @@ Two things, in this order of importance:
 
 2. **Is the architecture sound?** Read the ticket as a senior architect would read a design proposal from a teammate. Is the approach reasonable? Is the chosen seam the right one, or is there a better place to make the change? Are the cross-service contracts well-defined? Are the edge cases the _real_ edge cases of this feature, or generic boilerplate? Is anything obviously wrong — wrong layer, broken invariant, fragile coupling, premature optimization, missing failure mode, security gap, race condition?
 
-Format-level checks (no code snippets, file paths in backticks, frontend tickets reference `/frontend-design`) are a footnote. They matter, but they're not why you're here.
+Format-level checks (no code snippets, backtick-quoted paths, directory/area-level references rather than pinned files or line numbers) are a footnote. They matter, but they're not why you're here.
 
 ## How to work
 
@@ -43,7 +43,7 @@ Keep the report tight. No checklists, no boilerplate, no restating the ticket ba
 - [path/claim in the ticket] vs [what the live code actually shows]
 
 **Last-mile checks**
-- [only if something failed: missing /frontend-design reference, code snippet present, broken backtick path, etc.]
+- [only if something failed: code snippet present, broken backtick path, etc.]
 
 **What's good**
 - [one or two sentences. Only if there's something genuinely worth calling out — not participation trophies.]

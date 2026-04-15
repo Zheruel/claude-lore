@@ -25,8 +25,7 @@ When creating tickets:
 
 - Never include code snippets — explain what to do and why
 - Focus on architectural decisions and their rationale
-- Reference specific file paths that need modification
-- For frontend work, note that the `/frontend-design` skill should be used during implementation
+- Point to directories and key modules, not specific files or line numbers — plan mode picks the exact spot with full local context
 - Include edge cases, integration points, and testing strategy
 - Keep it clear and concise
 
