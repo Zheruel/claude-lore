@@ -1,13 +1,10 @@
 # Claude Lore
 
-Two artifacts that keep Claude Code grounded in your multi-project codebase: a lean index Claude loads each session, and a rich HTML report humans actually read.
+A lean architecture index that keeps Claude Code grounded in your multi-project codebase, auto-loaded every session.
 
 ## What it does
 
-Claude Lore scans every project in your codebase, maps the relationships between them, and generates two things:
-
-- **`CLAUDE.md`** — a lean index that Claude Code loads automatically. Projects table, external services, a small cross-project diagram, key locations. Optimized for fast loading, not human browsing.
-- **`architecture.html`** — a single self-contained HTML file with the full architecture documentation: system overview, diagrams, data flows, per-project deep dives, external services, patterns. Open it in a browser. This is what humans read.
+Claude Lore scans every project in your codebase, maps the relationships between them, and generates a `CLAUDE.md` index that Claude Code loads automatically: projects table, external services, a small cross-project diagram, key locations. It's a map for writing cross-service tickets — depth comes from live re-exploration in each affected repo, not from this file.
 
 Tickets created by `/lore-ticket` re-explore the live code each time, so they're always grounded in current reality.
 
@@ -25,7 +22,6 @@ cd architecture && claude
 my-company/
 ├── architecture/
 │   ├── CLAUDE.md          # Lean index, auto-loaded by Claude
-│   ├── architecture.html  # Rich human-facing architecture report
 │   └── tickets/           # Flat folder, one ticket per file
 │       └── add-rate-limiting.md
 ├── api/
@@ -33,15 +29,10 @@ my-company/
 └── ...
 ```
 
-The HTML report holds the rich documentation; the lean `CLAUDE.md` is for Claude.
-
 ## What you can do after init
 
 **`/lore-ticket rate limiting for the API`**
 > Re-explores the live code across affected services and writes an architectural ticket optimized for plan mode. A senior-architect agent then reviews it against the live code.
-
-**Open `architecture.html`**
-> Browse the full architecture: diagrams, data flows, per-project deep dives, external services.
 
 **"How does authentication work?"**
 > Claude has the lean index and re-explores the actual code to answer.
@@ -61,8 +52,8 @@ That's why tickets aren't split per service — every service benefits from seei
 
 | Skill | Description |
 |-------|-------------|
-| `/lore-init` | Scan all projects, write the lean `CLAUDE.md` and the rich `architecture.html` |
-| `/lore-update` | Re-scan and regenerate both artifacts |
+| `/lore-init` | Scan all projects, write the lean `CLAUDE.md` index |
+| `/lore-update` | Re-scan and regenerate the index |
 | `/lore-ticket [description]` | Create an architectural implementation ticket |
 
 ## Supported tech stacks

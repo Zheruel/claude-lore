@@ -1,19 +1,16 @@
 # Architecture
 
-Run `/lore-init` to scan your projects and generate the architecture artifacts.
+Run `/lore-init` to scan your projects and generate the architecture index.
 
 ## Skills
 
-- `/lore-init` — Scan all projects and generate the lean `CLAUDE.md` index plus the human-facing `architecture.html` report
-- `/lore-update` — Re-scan and regenerate both artifacts after code changes
+- `/lore-init` — Scan all projects and generate the lean `CLAUDE.md` architecture index
+- `/lore-update` — Re-scan and regenerate the index after code changes
 - `/lore-ticket [description]` — Create an architectural implementation ticket for a feature or task
 
 ## What you get after init
 
-Two artifacts, two audiences:
-
-- **`CLAUDE.md`** — a lean index that Claude loads each session. Projects table, external services, a small Mermaid diagram of cross-project edges, key locations per project, patterns, and a pointer to the HTML report. Optimized for fast loading, not for human reading.
-- **`architecture.html`** — a single self-contained HTML file with the rich, navigable architecture documentation. System overview, projects, architecture diagrams, external services, data flows, per-project deep dives, patterns. Open it in a browser. This is what humans read.
+A lean `CLAUDE.md` that Claude loads each session: projects table, external services, a small Mermaid diagram of cross-project edges, key locations per project, and patterns. It's an index for writing cross-service tickets — depth comes from live re-exploration in each affected repo, not from this file.
 
 The `tickets/` folder is flat — every ticket lives at `tickets/[feature-name].md`.
 
