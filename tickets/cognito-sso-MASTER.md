@@ -420,6 +420,20 @@ BFF (*recommended*) vs a faster-but-weaker v1 with tokens in fragment/storage.
 **Sequencing & rollback.** Parallel to C–F; Managed Login stays interim so nothing is blocked; swap
 `login.`→SPA when ready. Rollback: repoint `login.` to Managed Login (re-add the Cognito custom domain);
 keep the web client + `auth.` domain regardless.
+**Revived-SPA reality (verified 2026-05-31).** `fr-unified-login` is **~80% built**: all screens
+(`SignIn`/`Mfa`/`Forgot`/`Reset`/`SelectIdp`/`Callback`), EN/NO/SV i18n, and `tokens.css` carrying the
+exact `unified-login.html` palette + **real Instrument Serif/Geist** (the `--stage:#1f1d2b` field matches
+the B2 Managed Login bg) — i.e. the design freedom we want, already coded. **But its cross-product SSO is
+silently broken:** `cognito.ts`/`session.ts` assume that serving from `.futureready.ai` "drops the
+cross-product cookie", yet `amazon-cognito-identity-js` persists to **localStorage (per-origin)** —
+`login.`'s session is unreadable by `app.`/`qa.`, so each product just bounces back to login. **The §5-L
+broker is exactly the fix** (and the reason a single shared client matters: Cognito refresh tokens are
+client-bound, so silent cross-client SSO needs one client, not the SPA's current per-product `clientIds`
+map). **G3 modernization (module-level):** swap `cognito.ts` → Amplify Gen2 Auth (keep the `AuthResult`
+state machine + screens); repoint `oauth.ts` `cognitoDomain` → `auth.futureready.ai`; collapse
+`config/env.ts` `clientIds`-per-product → the single web client; replace the bare
+`location.assign(returnTo)` handoff (`session.ts`) with a POST to the broker (sets the httpOnly cookie)
+then redirect; point `idp.ts` `VITE_IDP_LOOKUP_URL` at a broker endpoint.
 
 ---
 
