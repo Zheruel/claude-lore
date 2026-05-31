@@ -93,9 +93,11 @@ NEVER the Cognito `sub`.** This is load-bearing — every lookup keys on `person
 - ❌ **Prod bundles have NO Cognito signals** — prod not rebuilt from merged code (prod deploys on
   push to `main`). Env split: **Coaching dev+prod; Admin dev+prod; QA prod-only.**
 
-### Redundant infra built 2026-05-31 (to be torn down — see Phase B3)
+### Redundant infra built 2026-05-31 — ✅ DECOMMISSIONED (B3, 2026-05-31)
 - S3 `future-ready-login-prod`, CloudFront `E3RIXQF158R3Q8` (`dm8mfbdok3fux.cloudfront.net`), OAC
-  `E2LEYS4HU0WGXE` — a standalone deploy of the now-shelved SPA. Decommission in B3.
+  `E2LEYS4HU0WGXE` — the standalone deploy of the shelved SPA — **all deleted, verified gone**
+  (NoSuchDistribution / NoSuchOriginAccessControl / bucket 404). Was safe: dist had `Aliases:0` and DNS
+  for `login.` stays on the Cognito dist `d20cuyja3hvanc`, so nothing pointed at it.
 
 ---
 
@@ -177,9 +179,11 @@ Legend: ✅ done · 🟡 partial/staged · ⬜ not started
   dark field, indigo focus ring) and the products' OAuth2 redirect lands on it. **No frontend rework** —
   products keep code+PKCE. Accepted tradeoff: ML v2 has **no custom-font control**, so Instrument Serif rides
   on the logo only, not the "Sign in" heading. Source + rollback: `cognito-managed-login-branding/`.
-- ⬜ **B3. Delete the SPA entirely** (per D5): decommission the redundant infra built 2026-05-31
-  (empty+delete S3 `future-ready-login-prod`, disable+delete CloudFront `E3RIXQF158R3Q8`, delete OAC
-  `E2LEYS4HU0WGXE`), and archive/remove the `fr-unified-login` repo.
+- ✅ **B3. Delete the SPA — DONE (2026-05-31).** Decommissioned the redundant infra: emptied+deleted S3
+  `future-ready-login-prod`, disabled→(Deployed)→deleted CloudFront `E3RIXQF158R3Q8`, deleted OAC
+  `E2LEYS4HU0WGXE` (all verified gone). Repo `FutureReadyAS/fr-unified-login` **archived** (read-only,
+  reversible) rather than hard-deleted — keeps history recoverable; flip to a full repo delete later if
+  desired. Verified before deleting: dist had no aliases and no DNS pointed at it.
 
 ### PHASE C — LMS dev rehearsal (per D2)
 - ⬜ **C1.** Point LMS **dev** frontends at branded `login-dev`; flip dev flags
@@ -349,9 +353,10 @@ per-customer, after 2 weeks of zero legacy-path usage.
   stays commented, not deleted.
 
 ## 8. NEXT ACTIONS (live)
-1. ~~A1 mirror Lambda~~ ✅ · ~~A2 exchange fn~~ ✅ · ~~B2 brand Managed Login (dev→prod)~~ ✅ — Phase A + B2 done.
-2. **B3** — delete the SPA + redundant infra (empty/delete S3 `future-ready-login-prod`, disable/delete
-   CloudFront `E3RIXQF158R3Q8`, delete OAC `E2LEYS4HU0WGXE`, archive `fr-unified-login` repo). _Start here._
-3. Then **C** (LMS dev rehearsal) → **D** (prod window) → **E** (cleanup) → **F** (auto-provisioning).
+1. ~~Phase A~~ ✅ · ~~B1 decide~~ ✅ · ~~B2 brand Managed Login~~ ✅ · ~~B3 delete SPA + infra~~ ✅ — **Phases A + B done.**
+2. **C** — LMS dev rehearsal (per D2): point LMS **dev** frontends at branded `login-dev`, flip dev flags
+   (`VITE_AUTH_MODE=cognito`, `VITE_APP_SWITCHER_ENABLED=true`) with **dev** client ids, rebuild dev, run
+   end-to-end (sign in → Coaching dev → app switcher → Admin dev; confirm dual-auth backend). _Start here._
+3. Then **D** (prod window) → **E** (cleanup) → **F** (auto-provisioning).
 - Housekeeping: **rotate the Cloudflare token** shared in the 2026-05-31 session (it's in that
   transcript).
