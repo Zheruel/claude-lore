@@ -247,18 +247,21 @@ is NOT itself a switcher app; admin switcher mounted in sidebar footer (sidebar 
 chrome). `VITE_USER_SELF_PATH` (default `users/me`) lets the self/apps path be corrected to the
 backend context-path (`/future-ready`) without a code change.
 
-### §5-D. QA mirror Lambda (Phase A1) — STUB, must write
-PostConfirmation/PostAuthentication → `supabaseAdmin.auth.admin` upsert of `auth.users` with
-`id = custom:person_uid`, `email`, `email_confirm:true`, `user_metadata = { invited_as, agent_id,
-company_id, org_id }`. `email_confirm:true` is what transitions `email_confirmed_at` null→set and
-fires `link_user_to_agent()`. Idempotent re-auth refreshes metadata only. Service-role creds from
-Secrets Manager. The exchange fn (§5-E) must be able to re-invoke this synchronously on a miss.
+### §5-D. QA identity mirror — DONE in `cognito-session-exchange`, no Lambda (Phase A1, decision D9)
+There is no mirror Lambda. The Cognito→Supabase mirror happens on-demand inside
+`cognito-session-exchange`: `resolveMirroredUser` does get-by-id keyed on `custom:person_uid`
+(== `auth.users.id`), and on miss `ensureRow` calls `supabaseAdmin.auth.admin.createUser({ id:
+person_uid, email, email_confirm:true, user_metadata })` — `email_confirm:true` transitions
+`email_confirmed_at` null→set and fires `link_user_to_agent()`, exactly as the old Supabase invite
+flow. Service-role key comes from the Supabase edge-fn secret store (not AWS Secrets Manager). The
+old Lambda's only extra behavior — refreshing `raw_user_meta_data` on attribute change — is not
+ported (that metadata is read only at first-login routing); add to the exchange fn later if needed.
 
 ### §5-E. QA `cognito-session-exchange` (Phase A2) — written, deploy
 Deploy `--no-verify-jwt` (called pre-session). Validate the Cognito **access token** via JWKS
 (`createRemoteJWKSet`+`jwtVerify`): `iss`, `exp`, `token_use==="access"`, `client_id===<QA client>`.
 Read `custom:person_uid` via Cognito **GetUser** (access-token-authorized; access tokens lack custom
-attrs/aud). Look up `auth.users` by `person_uid`; **self-heal** on miss (re-run mirror, bounded ~3×
+attrs/aud). Look up `auth.users` by `person_uid`; **create on miss** (create-or-get, bounded ~3×
 backoff) → else 503. Mint a Supabase session admin-side (`generateLink` magiclink →
 `hashed_token` → `verifyOtp`) → return `{access_token, refresh_token}`. Env:
 `COGNITO_USER_POOL_ID`, `COGNITO_QA_CLIENT_ID`, `COGNITO_REGION`.
