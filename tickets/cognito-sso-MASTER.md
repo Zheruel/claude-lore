@@ -112,12 +112,16 @@ NEVER the Cognito `sub`.** This is load-bearing — every lookup keys on `person
   branding editor cannot express a bespoke design (no custom fonts / no arbitrary HTML/CSS), so it is
   now the **interim** surface, not the destination.
 - **D1-B — Login surface → CUSTOM FUTURE READY SPA + token-handler broker on Cognito (DECIDED
-  2026-05-31).** Build a custom SPA at `login.futureready.ai` (per `unified-login.html`) that
-  authenticates against Cognito directly (SRP via **Amplify Gen2 Auth** / AWS SDK v3 — *not* the
-  deprecated lib) for password users, and redirects to Cognito hosted federation for enterprise/social
-  users; a thin first-party **token-handler broker** holds the Cognito refresh token httpOnly on
-  `.futureready.ai` and hands products short-lived access tokens (silent SSO). Cognito stays the
-  identity/token/federation/groups backend untouched — only the UI + session layer is ours.
+  2026-05-31).** Build a custom SPA at `login.futureready.ai` (per `unified-login.html`) that POSTs
+  credentials/challenge-responses to a thin first-party **token-handler broker (BFF)**. The **broker**
+  runs the Cognito flows **server-side** (AWS SDK v3 — `InitiateAuth`/`RespondToAuthChallenge`/
+  `ForgotPassword`/…), redirects to Cognito hosted federation for enterprise/social, and holds the
+  Cognito **refresh token httpOnly** on `.futureready.ai`, handing products short-lived access tokens
+  (silent SSO). **The SPA never sees the refresh token — that's what makes secure cross-product SSO
+  work**, and why Amplify-in-the-SPA is *not* used (its `fetchAuthSession` hides the refresh token,
+  stranding it in the browser; broker-owns-auth is the only variant that solves the SSO gap below).
+  Cognito stays the identity/token/federation/groups backend untouched — only the UI + session layer is
+  ours.
   **Why over switching IdP (Auth0/Clerk/WorkOS):** the login problem is a *UI* problem; switching IdP
   would re-platform the whole identity layer already built (backend resource server, `lms:*`/`qa:*`
   groups, the `person_uid` spine, the QA mirror, invites, migrator, Phase F M2M), re-migrate every
@@ -254,20 +258,24 @@ Legend: ✅ done · 🟡 partial/staged · ⬜ not started
 Managed Login (B2) is the interim surface, so Phases C–F are **not blocked**; G swaps `login.futureready.ai`
 → the custom SPA when ready (before or after the prod cutover — a product call). Each step is reversible
 (repoint `login.` to Managed Login).
-- ⬜ **G1. Cognito groundwork.** Add a shared first-party web app client `futureready-web` (SRP + refresh
-  for the password path; code+PKCE + an `auth.futureready.ai` callback for federation). Create the
-  `auth.futureready.ai` Cognito **custom domain** (ACM us-east-1) and keep branded Managed Login there as
-  the federation hand-off + fallback. Per-product clients stay during transition. (Decide single-shared
-  client vs per-product — §5-L key decisions.)
-- ⬜ **G2. Auth broker (BFF).** Stand up the token-handler in **eu-north-1** (API GW+Lambda / Lambda@Edge /
-  co-located with an existing backend): SRP + refresh + revoke against Cognito; sets the httpOnly
-  `Domain=.futureready.ai` refresh cookie; serves `/api/token` (CORS allowlist = product origins,
-  credentials), `/api/logout`, and the federation `callback` code-exchange. Refresh token never reaches
-  product JS.
-- ⬜ **G3. Login SPA.** `gh repo unarchive` `fr-unified-login`; rebuild the auth layer on **Amplify Gen2
-  Auth** (drop `amazon-cognito-identity-js`); implement every screen per `unified-login.html`: sign-in,
-  MFA challenge + TOTP enroll, NEW_PASSWORD_REQUIRED (activation / force-change), forgot/reset, and the
-  SSO-routing state (email-domain → "Continue to <IdP>"). Host on its own CloudFront/Amplify.
+- ⬜ **G1. Cognito groundwork.** Add the shared first-party web app client `futureready-web` (no secret;
+  enable `ALLOW_USER_SRP_AUTH` + `ALLOW_REFRESH_TOKEN_AUTH` for the broker's server-side password flow;
+  code+PKCE + an `auth.futureready.ai` callback for federation) — single shared client (resolved). Create
+  the `auth.futureready.ai` Cognito **custom domain** (ACM us-east-1) and keep branded Managed Login there
+  as the federation hand-off + fallback. Add to `terraform/modules/cognito` (human-applied, like A1).
+  Per-product clients stay during transition.
+- ⬜ **G2. Auth broker (BFF) — API GW + Lambda, eu-north-1.** Server-side Cognito via **AWS SDK v3**
+  (`InitiateAuth`/`RespondToAuthChallenge`/`ForgotPassword`/`ConfirmForgotPassword`/`AssociateSoftwareToken`/
+  `VerifySoftwareToken`/refresh/`GlobalSignOut`). Endpoints: `/api/login`, `/api/mfa`, `/api/new-password`,
+  `/api/forgot`, `/api/reset`, `/api/federation-callback` (PKCE code-exchange), `/api/token` (CORS
+  allowlist = product origins, credentials), `/api/logout`. Holds the Cognito refresh token in an httpOnly
+  `Domain=.futureready.ai` cookie; access tokens stay short-lived; **the refresh token never reaches the
+  browser**. CSRF protection on state-changing routes.
+- ⬜ **G3. Login SPA.** `fr-unified-login` (unarchived); rewrite the auth layer as a **thin broker
+  fetch-client** (drop `amazon-cognito-identity-js`; **no Amplify** — broker-owns-auth). The screens
+  already exist per `unified-login.html` (sign-in, MFA challenge + TOTP enroll, NEW_PASSWORD_REQUIRED for
+  activation / force-change, forgot/reset, SSO-routing email-domain → "Continue to <IdP>") — wire each to
+  its broker endpoint. Host on its own CloudFront/Amplify.
 - ⬜ **G4. Product reconfig (behind existing flags).** LMS coaching+admin and QA swap the §5-C/§5-F
   "redirect to Managed Login + PKCE + store `localStorage.authToken`" for "call broker `/api/token`
   (credentials include); on 401 → redirect to the login SPA." QA then runs `cognito-session-exchange`
@@ -391,12 +399,16 @@ per-customer, after 2 weeks of zero legacy-path usage.
 **token-handler broker (BFF)**. Cognito is unchanged underneath: identity store, token issuer,
 federation broker, groups source. We own only the UI + session layer.
 **Auth flows.**
-- *Password:* SPA → Cognito `InitiateAuth` USER_SRP_AUTH (Amplify Gen2 Auth / SDK v3) → custom screens
-  for MFA / NEW_PASSWORD_REQUIRED → Cognito tokens.
+- *Password (broker-owns-auth):* SPA POSTs `{email,password}` → broker `/api/login`; the broker runs
+  Cognito `InitiateAuth` (SDK v3, server-side) and returns the challenge state (`mfa`/`mfaSetup`/
+  `newPassword`/`done`); the SPA renders the matching screen and POSTs responses to `/api/mfa` ·
+  `/api/new-password` etc. On `done` the broker sets the httpOnly cookie; the SPA redirects to
+  `return_to`. The SPA never holds tokens.
 - *Enterprise/social:* SPA detects the email domain → redirects to
   `auth.futureready.ai/oauth2/authorize?identity_provider=<X>&redirect_uri=<SPA callback>` → IdP auth →
-  code back to the SPA → broker exchanges (PKCE) at `auth./oauth2/token`. Branded Managed Login (B2) is
-  the brief on-brand surface here + the fallback.
+  code back to the SPA → SPA POSTs the `code` to the broker, which does the PKCE exchange at
+  `auth./oauth2/token` (so the broker, not the browser, holds the refresh token) and sets the cookie.
+  Branded Managed Login (B2) is the brief on-brand surface here + the fallback.
 - *Silent SSO:* broker holds the Cognito refresh token httpOnly in a `Domain=.futureready.ai` cookie.
   Product on load → `login.futureready.ai/api/token` (credentials: include) → fresh short-lived
   access/id token, or 401 → product redirects to SPA `/?return_to=<product>`.
@@ -408,15 +420,18 @@ domain from `login.`, re-create at `auth.`; ACM `auth.` cert in us-east-1.
 **Why the broker (not tokens-in-localStorage).** httpOnly refresh on `.futureready.ai` = no long-lived
 token in JS (an upgrade over today's `localStorage.authToken`) + silent cross-product SSO without
 Cognito's hosted cookie. The broker is the only new moving part.
-**Per-service impact.** *New:* broker (eu-north-1) + login SPA (revived `fr-unified-login`, Amplify Gen2
-Auth). *Changed:* the 3 frontends' token acquisition (flag-gated; §5-C/§5-F) and LMS backend audience =
-the shared web client. *Unchanged:* `cognito-session-exchange`, groups, app switcher, migrator, Phase F.
+**Per-service impact.** *New:* broker (eu-north-1, AWS SDK v3) + login SPA (revived `fr-unified-login`,
+**thin broker fetch-client — no Amplify**). *Changed:* the 3 frontends' token acquisition (flag-gated;
+§5-C/§5-F) and LMS backend audience = the shared web client. *Unchanged:* `cognito-session-exchange`,
+groups, app switcher, migrator, Phase F.
 **Key plan-mode decisions.** (1) Single shared `futureready-web` client — *recommended*: Cognito refresh
 tokens are client-bound, so one client = one session serving all products; groups are user-bound so
-authz is unaffected — vs per-product clients. (2) Broker hosting: API GW+Lambda vs Lambda@Edge vs extend
-LMS backend vs Supabase edge fn (must be on `.futureready.ai`, EU region). (3) Auth lib: Amplify Gen2
-Auth (wraps SRP + all challenges, maintained) vs hand-rolled SDK v3. (4) Token delivery: token-handler /
-BFF (*recommended*) vs a faster-but-weaker v1 with tokens in fragment/storage.
+authz is unaffected — vs per-product clients. (2) Broker hosting: **RESOLVED → API GW + Lambda, eu-north-1**
+(serverless, in-region, isolated from the LMS backend). (3) **RESOLVED → broker-owns-auth**: SPA is a
+fetch-client; the broker runs Cognito via AWS SDK v3 server-side. Amplify-in-the-SPA is ruled out — it
+hides the refresh token, so the broker couldn't hold it. (4) Token delivery: **RESOLVED → token-handler /
+BFF (httpOnly refresh)** — required for secure cross-product SSO; the localStorage variant is the very gap
+found below.
 **Sequencing & rollback.** Parallel to C–F; Managed Login stays interim so nothing is blocked; swap
 `login.`→SPA when ready. Rollback: repoint `login.` to Managed Login (re-add the Cognito custom domain);
 keep the web client + `auth.` domain regardless.
@@ -429,11 +444,13 @@ cross-product cookie", yet `amazon-cognito-identity-js` persists to **localStora
 `login.`'s session is unreadable by `app.`/`qa.`, so each product just bounces back to login. **The §5-L
 broker is exactly the fix** (and the reason a single shared client matters: Cognito refresh tokens are
 client-bound, so silent cross-client SSO needs one client, not the SPA's current per-product `clientIds`
-map). **G3 modernization (module-level):** swap `cognito.ts` → Amplify Gen2 Auth (keep the `AuthResult`
-state machine + screens); repoint `oauth.ts` `cognitoDomain` → `auth.futureready.ai`; collapse
-`config/env.ts` `clientIds`-per-product → the single web client; replace the bare
-`location.assign(returnTo)` handoff (`session.ts`) with a POST to the broker (sets the httpOnly cookie)
-then redirect; point `idp.ts` `VITE_IDP_LOOKUP_URL` at a broker endpoint.
+map). **G3 modernization (module-level):** rewrite `cognito.ts` as a **broker fetch-client** (the screens
++ `AuthResult` state machine + `errors.ts` mapping stay; the broker runs the Cognito flows server-side) —
+drop `amazon-cognito-identity-js`, **no Amplify**; repoint `oauth.ts` to redirect to `auth.futureready.ai`
+and POST the callback `code` to the broker; collapse `config/env.ts` `clientIds`-per-product → the single
+web client + add the broker base URL; replace the bare `location.assign(returnTo)` handoff (`session.ts`)
+with a redirect once the broker has set the httpOnly cookie; point `idp.ts` `VITE_IDP_LOOKUP_URL` at a
+broker endpoint.
 
 ---
 
