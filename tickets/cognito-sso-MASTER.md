@@ -275,13 +275,21 @@ Managed Login (B2) is the interim surface, so Phases C–F are **not blocked**; 
   CNAMEs added. **Pending:** the `auth.` Cognito **custom domain** (created at the G5 swap, keeping branded
   Managed Login there as federation hand-off + fallback); the **prod** client; and the
   `terraform/modules/cognito` definition (human-applied, like A1). Per-product clients stay during transition.
-- ⬜ **G2. Auth broker (BFF) — API GW + Lambda, eu-north-1.** Server-side Cognito via **AWS SDK v3**
+- 🟡 **G2. Auth broker (BFF) — API GW + Lambda, eu-north-1.** Server-side Cognito via **AWS SDK v3**
   (`InitiateAuth`/`RespondToAuthChallenge`/`ForgotPassword`/`ConfirmForgotPassword`/`AssociateSoftwareToken`/
   `VerifySoftwareToken`/refresh/`GlobalSignOut`). Endpoints: `/api/login`, `/api/mfa`, `/api/new-password`,
   `/api/forgot`, `/api/reset`, `/api/federation-callback` (PKCE code-exchange), `/api/token` (CORS
   allowlist = product origins, credentials), `/api/logout`. Holds the Cognito refresh token in an httpOnly
   `Domain=.futureready.ai` cookie; access tokens stay short-lived; **the refresh token never reaches the
-  browser**. CSRF protection on state-changing routes.
+  browser**. CSRF protection on state-changing routes. **DEV DONE 2026-05-31:** built (`broker/` in
+  `fr-unified-login`, branch `feat/d1b-custom-login`), code-reviewed, deployed (`fr-auth-broker-dev`
+  Lambda + HTTP API `https://3qqzl4et83.execute-api.eu-north-1.amazonaws.com`), and **e2e-validated**
+  against the dev pool: login → `/api/token` (200, access+id) → logout-revoke → `/api/token` `no_session`.
+  AES-256-GCM-sealed cookies, least-privilege IAM (GetSecretValue on exactly the 2 secrets). Bug caught +
+  fixed in review: HTTP API **v2.0 delivers cookies in `event.cookies`**, not the header. MFA / new-password
+  / federation paths are code-reviewed but not yet live-tested (need an MFA-enrolled user / a SAML IdP).
+  **Pending:** a `*.futureready.ai` custom domain for the broker (needed so the `.futureready.ai` cookie is
+  accepted in-browser; an execute-api host can't set it) + Terraform/prod.
 - ⬜ **G3. Login SPA.** `fr-unified-login` (unarchived); rewrite the auth layer as a **thin broker
   fetch-client** (drop `amazon-cognito-identity-js`; **no Amplify** — broker-owns-auth). The screens
   already exist per `unified-login.html` (sign-in, MFA challenge + TOTP enroll, NEW_PASSWORD_REQUIRED for
