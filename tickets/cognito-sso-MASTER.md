@@ -44,9 +44,10 @@ NEVER the Cognito `sub`.** This is load-bearing — every lookup keys on `person
   | Coaching / LMS end-user | `5m99osmis6vb1kebo02nt58hoh` | `359oqe65f7je5rcs7msr5t01ns` |
   | LMS admin | `317imgrhelvhoa2igsrvdlanqi` | `39q70q0258toiv55o8g9l4qflq` |
 
-- ⚠️ **Mirror Lambda is a STUB.** `futureready-auth-mirror-{dev,prod}` — CodeSize **1103 bytes**,
-  LastModified **2026-04-20**, never updated. Wired as PostConfirmation + PostAuthentication on
-  both pools, but the body does nothing. **The mirror body was never shipped. Biggest gap.**
+- ⚠️ **Mirror Lambda — being REMOVED (decision D9).** Live `futureready-auth-mirror-{dev,prod}` is a
+  1103-byte stub wired as PostConfirmation+PostAuthentication. The Terraform + Lambda source are
+  removed in code (A1 done); the stub is still attached on the pools until `terraform apply` runs
+  (human-reviewed). The Cognito→Supabase mirror now lives entirely in `cognito-session-exchange`.
 - ✅ `login.futureready.ai` = Cognito **Managed Login v1**, CloudFront `d20cuyja3hvanc.cloudfront.net`,
   ACTIVE; `/oauth2/authorize` → 302 → `/login`. `login-dev.futureready.ai` = dev equivalent.
 
@@ -124,6 +125,18 @@ NEVER the Cognito `sub`.** This is load-bearing — every lookup keys on `person
 - **D8 — Auto-tenant provisioning seat gating → NONE.** Unconditional auto-provision on training
   assignment (enterprise B2B contracts handle caps). Add a seat-pool check later only if commercial
   finds real leakage.
+- **D9 — Mirror Lambda → DROPPED; the exchange fn is the sole mirror (DECIDED 2026-05-31).** The
+  Cognito→Supabase mirror is done on-demand inside `cognito-session-exchange` (create-or-get keyed on
+  `custom:person_uid`, `email_confirm:true` → fires `link_user_to_agent()`). No PostConfirmation/
+  PostAuthentication Lambda. Rationale: the Lambda fired for EVERY user — including LMS-only users
+  (the migrator sets `custom:person_uid` on them, so the skip-guard doesn't catch them) — doing a
+  Supabase write for people who never touch Supabase, coupling LMS login to Supabase availability for
+  zero benefit, and sitting in the auth hot path (a throwing PostAuthentication trigger fails the
+  login). The exchange fn already does the identical create for the only users who need it (QA), at
+  session-mint time. The Lambda's one extra behavior (refresh metadata on attribute change) is
+  marginal — that metadata is read only at first-login routing — and can be added to the exchange fn
+  later if ever needed. The full Lambda body that existed on branch `feat/auth-mirror-lambda-body`
+  (merged to `development`, never applied to prod — prod ran the stub) is removed, not merged.
 
 ---
 
@@ -132,11 +145,13 @@ NEVER the Cognito `sub`.** This is load-bearing — every lookup keys on `person
 Legend: ✅ done · 🟡 partial/staged · ⬜ not started
 
 ### PHASE A — Close the data-plane gaps (additive; no user-visible change)
-- ⬜ **A1. Write & deploy the mirror Lambda body.** Cognito PostConfirmation/PostAuthentication →
-  upsert Supabase `auth.users` keyed on `custom:person_uid` (== `auth.users.id`), `email_confirm:true`
-  (fires `link_user_to_agent()`), `raw_user_meta_data` from custom attrs (`invited_as`, `agent_id`,
-  `company_id`, `org_id`). Idempotent on re-auth. Code + Terraform in the `fr-website-backend` tree
-  (replaces the stub). **Deploy to dev pool first, test with a throwaway user, then prod.** See §5-D.
+- ✅ **A1. Mirror Lambda DROPPED (decision D9) — exchange fn is the sole mirror.** Code committed:
+  removed the Lambda + its Terraform (`modules/cognito/main.tf` lambda_config/lambda/IAM/secret +
+  outputs) and deleted `lambdas/auth-mirror/`; corrected `cognito-session-exchange` comments so it
+  reads as the sole creator (logic already did create-or-get). ⚠ **`terraform apply` still pending**
+  (human-reviewed): it detaches the triggers, destroys the Lambda+role, and schedules the now-orphan
+  Supabase service-role Secrets-Manager secret for deletion (30-day recovery). Shipped as a backend
+  PR + a QA PR.
 - 🟡 **A2. Deploy `cognito-session-exchange`.** First set QA Supabase secrets `COGNITO_USER_POOL_ID`,
   `COGNITO_QA_CLIENT_ID`, `COGNITO_REGION`; then `supabase functions deploy cognito-session-exchange
   --no-verify-jwt`. Written locally already. See §5-E.
