@@ -152,9 +152,12 @@ Legend: ✅ done · 🟡 partial/staged · ⬜ not started
   (human-reviewed): it detaches the triggers, destroys the Lambda+role, and schedules the now-orphan
   Supabase service-role Secrets-Manager secret for deletion (30-day recovery). Shipped as a backend
   PR + a QA PR.
-- 🟡 **A2. Deploy `cognito-session-exchange`.** First set QA Supabase secrets `COGNITO_USER_POOL_ID`,
-  `COGNITO_QA_CLIENT_ID`, `COGNITO_REGION`; then `supabase functions deploy cognito-session-exchange
-  --no-verify-jwt`. Written locally already. See §5-E.
+- ✅ **A2. Deploy `cognito-session-exchange` — DONE (2026-05-31).** Set QA Supabase identifiers
+  `COGNITO_USER_POOL_ID` / `COGNITO_QA_CLIENT_ID` / `COGNITO_REGION`; added a
+  `[functions.cognito-session-exchange] verify_jwt=false` block to `config.toml` (PR #289 — the
+  missing block was why the GitHub integration never auto-deployed it / it 404'd); deployed via CLI
+  and smoke-tested in prod: OPTIONS→200, empty body→400, garbage token→401 (our JWKS validation runs).
+  Additive + inert until the QA cutover flips `VITE_AUTH_MODE=cognito`. See §5-E.
 - ✅ **A3. Invite functions** rewritten + deployed (invite-agent/manager/client).
 - ✅ **A4. LMS backend bridge** (`/api/users/me`, `/api/users/me/apps`) deployed, dual-auth.
 - ✅ **A5. Supabase service-role key** present.
