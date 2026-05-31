@@ -19,8 +19,9 @@ the **cutover has not happened** and **two load-bearing pieces are missing or un
 
 - ❌ **Mirror Lambda is still a logging stub** — the single most load-bearing piece for QA.
 - ❌ **`cognito-session-exchange` is written but NOT deployed** (returns 404 in prod).
-- ❌ **`login.futureready.ai` serves Cognito Managed Login, not our SPA** — and the SPA
-  and product frontends use **incompatible login mechanisms** (see Decision Gate D1).
+- ✅ **`login.futureready.ai` already serves Cognito Managed Login** — and per **D1 (decided
+  → D1-A)** that is now the intended login surface; it just needs Future Ready branding. The
+  `fr-unified-login` SPA is being shelved (see D1 rationale).
 
 Nothing is broken in prod today: QA runs legacy Supabase password login; LMS runs legacy
 home-grown JWT. All Cognito work to date is **additive and dormant**. There is no outage
@@ -106,7 +107,33 @@ risk in the current state — the risk is entirely in cutting over before the ga
 
 ## 2. DECISION GATES (must be answered before the matching phase)
 
-### 🔴 D1 — Login architecture: SPA vs. Cognito Managed Login (BLOCKS the whole cutover)
+### ✅ D1 — Login architecture: **DECIDED 2026-05-31 → D1-A (brand Cognito Managed Login)**
+**Decision: D1-A.** Keep the products' OAuth2 authorization-code + PKCE flow; make
+`login.futureready.ai` branded via Cognito **Managed Login v2**. Do **not** make the
+`fr-unified-login` SPA the login surface; shelve/repurpose it and decommission the standalone
+SPA distro built on 2026-05-31.
+
+**Rationale (researched + state-fit):**
+- AWS 2025 best practice explicitly favors Managed Login / Hosted UI with **auth-code+PKCE**
+  for SPAs and advises *against* hand-built login UIs using direct SDK SRP/USER_PASSWORD
+  calls unless there's a specific need.
+- `amazon-cognito-identity-js` (the SPA's auth lib) is in **maintenance mode** (absorbed into
+  Amplify) — building the login surface on it is building on a deprecated track.
+- **Security:** code+PKCE exchanges tokens via a back-channel POST and never lets our app code
+  touch passwords; the SPA's SDK path lands tokens in browser localStorage (the XSS surface
+  the guidance warns about). Managed Login v2 has a real branding designer, so the original
+  "Hosted UI can't be branded" reason for the SPA is largely obsolete.
+- **State-fit (decisive):** all three product frontends are *already coded* for code+PKCE →
+  `/oauth2/authorize`; the app clients are already `code`-flow with correct callbacks; QA's
+  partial cutover already targets this shape. D1-A = **zero frontend rework**. D1-B would
+  require rewriting + re-testing all three products, cross-origin cookie storage, and a
+  path-routed multi-origin CloudFront in front of a live auth domain (high blast radius).
+- **Cost accepted:** `fr-unified-login` becomes redundant as a login surface. Sunk-cost only;
+  not a reason to take the riskier, deprecated-library path.
+
+---
+
+#### (Original D1 framing, retained for context)
 The two halves of the project were built to **different mental models** and were never
 integrated:
 - **Product frontends** (QA merged; LMS PRs) do OAuth2 **authorization-code + PKCE**: they
@@ -172,15 +199,17 @@ Legend: ✅ done · 🟡 partial/staged · ⬜ not started · 🔴 blocked on a 
 - ✅ **A4. LMS backend bridge** (`/api/users/me`, `/api/users/me/apps`) deployed, dual-auth.
 - ✅ **A5. Supabase service-role key** present.
 
-### PHASE B — Resolve D1 and stand up the chosen login surface
-- 🔴 **B1. Answer Decision Gate D1.** (Blocks B2/B3.)
-- ⬜ **B2 (if D1-A).** Configure Cognito **Managed Login v2** branding on the prod pool (+ dev);
-  verify `login.futureready.ai` shows the Future Ready brand; products keep OAuth2 flow.
-  Decommission the standalone SPA S3+CloudFront built this session (`future-ready-login-prod`
-  / `E3RIXQF158R3Q8` / OAC `E2LEYS4HU0WGXE`).
-- ⬜ **B3 (if D1-B).** Rework SPA to CookieStorage + path-routed CloudFront in front of
-  `login.futureready.ai` (SPA at `/`, Cognito at `/oauth2/*`); attach cert `cb17c532`; rework
-  QA exchange to read the cookie; re-test. (Much larger; see D1-B.)
+### PHASE B — Stand up the chosen login surface (D1-A: branded Managed Login)
+- ✅ **B1. Decision Gate D1 answered → D1-A.**
+- ⬜ **B2. Brand Cognito Managed Login v2** on the **dev** pool first, then prod. Apply Future
+  Ready brand (logo, colors, CSS) via the Managed Login branding designer / API; verify
+  `login-dev.` then `login.futureready.ai` shows the brand and the products' OAuth2 redirect
+  lands on it. Products keep their existing code+PKCE flow — **no frontend rework**.
+- ⬜ **B3. Decommission the redundant standalone SPA infra** built 2026-05-31 once B2 is
+  confirmed: empty+delete S3 `future-ready-login-prod`, disable+delete CloudFront
+  `E3RIXQF158R3Q8`, delete OAC `E2LEYS4HU0WGXE`. Shelve/repurpose the `fr-unified-login` repo
+  (keep for potential `/forgot`/account helpers, or archive). _The `unified-login.html` visual
+  spec from 3c can inform the Managed Login branding._
 
 ### PHASE C — Dev rehearsal (per Decision Gate D2)
 - ⬜ **C1.** Point LMS **dev** frontends at the chosen login surface; flip dev flags
@@ -220,6 +249,6 @@ Legend: ✅ done · 🟡 partial/staged · ⬜ not started · 🔴 blocked on a 
 
 ## 5. OPEN ITEMS / OWNERS
 - Mirror Lambda body (A1) — **unowned, load-bearing.** Biggest single gap.
-- D1 architecture decision — **needs product + eng sign-off.**
+- ~~D1 architecture decision~~ — **DECIDED 2026-05-31 → D1-A (branded Managed Login).**
 - D3 QA-only backfill — script exists, **run unowned.**
 - Cloudflare token used in the 2026-05-31 session is in that chat transcript — **rotate it.**
