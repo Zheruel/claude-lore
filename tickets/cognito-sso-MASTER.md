@@ -290,11 +290,19 @@ Managed Login (B2) is the interim surface, so Phases C–F are **not blocked**; 
   / federation paths are code-reviewed but not yet live-tested (need an MFA-enrolled user / a SAML IdP).
   **Pending:** a `*.futureready.ai` custom domain for the broker (needed so the `.futureready.ai` cookie is
   accepted in-browser; an execute-api host can't set it) + Terraform/prod.
-- ⬜ **G3. Login SPA.** `fr-unified-login` (unarchived); rewrite the auth layer as a **thin broker
-  fetch-client** (drop `amazon-cognito-identity-js`; **no Amplify** — broker-owns-auth). The screens
-  already exist per `unified-login.html` (sign-in, MFA challenge + TOTP enroll, NEW_PASSWORD_REQUIRED for
-  activation / force-change, forgot/reset, SSO-routing email-domain → "Continue to <IdP>") — wire each to
-  its broker endpoint. Host on its own CloudFront/Amplify.
+- 🟡 **G3. Login SPA — auth layer + full redesign DONE (2026-05-31).** `fr-unified-login` (branch
+  `feat/d1b-custom-login`): auth layer rewritten as a **thin broker fetch-client** (dropped
+  `amazon-cognito-identity-js`; **no Amplify**) — `cognito.ts`→broker client, `oauth.ts`→post the
+  federation code to the broker, single-client `env.ts`, broker-set-cookie handoff in `session.ts`;
+  every screen wired to its broker endpoint. **Completely redesigned** (frontend-design): dark editorial
+  brand panel (Instrument Serif statement + coral, ring motif/glow/grain, trust strip) + clean warm-paper
+  form, real Instrument Serif/Geist, modern radii, focus rings, button micro-interactions, staggered
+  entrance motion, show/hide-password + email autofocus. **Dropped the per-product "signing in to X" pill
+  → one unified login** (the `product` query param is now vestigial/ignored; `return_to` still routes the
+  user back). Verified every screen in Chrome (sign-in + enterprise-SSO morph, forgot, reset, mfa);
+  typecheck/lint/test(13)/build clean. **Pending:** SPA hosting (CloudFront/Amplify on a dev URL) + the
+  broker `*.futureready.ai` custom domain (so the cookie works in-browser) + the prod shared-client id in
+  the SPA/broker env. Then full live e2e.
 - ⬜ **G4. Product reconfig (behind existing flags).** LMS coaching+admin and QA swap the §5-C/§5-F
   "redirect to Managed Login + PKCE + store `localStorage.authToken`" for "call broker `/api/token`
   (credentials include); on 401 → redirect to the login SPA." QA then runs `cognito-session-exchange`
