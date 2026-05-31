@@ -59,11 +59,20 @@ NEVER the Cognito `sub`.** This is load-bearing — every lookup keys on `person
   background + warm card; per §5-I). Branding ids — dev: QA `f0c90554`, Coaching `52a3c225`, Admin `3039a518`;
   prod: QA `7ccbb4a4`, Coaching `8500e799`, Admin `4857c706`. Identical surface across all three products.
   Reproducible source: `cognito-managed-login-branding/` (script + SVGs + settings + README).
+- 🟡 **Shared web client for the custom-login broker (G1, D1-B) — DEV created 2026-05-31.**
+  `futureready-web-dev` = **`2e4mfauktmb0jdd82qenc38btr`** on the dev pool: **confidential** (has secret →
+  Secrets Manager `cognito/futureready-web-dev/client-secret`), `ALLOW_USER_PASSWORD_AUTH` +
+  `ALLOW_REFRESH_TOKEN_AUTH`, code+PKCE OAuth, scopes openid/email/profile, callbacks
+  `https://login-dev.futureready.ai/callback` + `http://localhost:5173/callback`, token revocation on,
+  access/id 60m, refresh 30d. **Prod client + the Terraform definition are pending** (human-applied, like A1).
 
 ### ACM (us-east-1)
 - ✅ `login.futureready.ai` ISSUED `cb17c532-7723-425a-9074-ce1307041807`
 - ✅ `login-dev.futureready.ai` ISSUED `8e596adb-1e70-42d8-8c21-c71ffa666ee4`
 - ✅ frontend SAN cert (app/admin/api ±dev) `c9cb9c41-...`
+- ✅ **`auth.futureready.ai` ISSUED `67a9ff8f-ed4b-495b-b059-85a884f50740`** (G1, 2026-05-31) — for the
+  Cognito custom domain after the G5 swap (federation hand-off + Managed Login fallback).
+- ✅ **`auth-dev.futureready.ai` ISSUED `b6b5b036-00b0-45ed-ba55-ecbe8033afa3`** (G1, 2026-05-31).
 
 ### Cloudflare DNS (`futureready.ai`, zone `cb1a751f374c8e4a61e7673d7589e0fe`)
 - `login` → `d20cuyja3hvanc.cloudfront.net` (Cognito); `login-dev` → `d2ec6ah5pcam1v.cloudfront.net`
@@ -258,12 +267,14 @@ Legend: ✅ done · 🟡 partial/staged · ⬜ not started
 Managed Login (B2) is the interim surface, so Phases C–F are **not blocked**; G swaps `login.futureready.ai`
 → the custom SPA when ready (before or after the prod cutover — a product call). Each step is reversible
 (repoint `login.` to Managed Login).
-- ⬜ **G1. Cognito groundwork.** Add the shared first-party web app client `futureready-web` (no secret;
-  enable `ALLOW_USER_SRP_AUTH` + `ALLOW_REFRESH_TOKEN_AUTH` for the broker's server-side password flow;
-  code+PKCE + an `auth.futureready.ai` callback for federation) — single shared client (resolved). Create
-  the `auth.futureready.ai` Cognito **custom domain** (ACM us-east-1) and keep branded Managed Login there
-  as the federation hand-off + fallback. Add to `terraform/modules/cognito` (human-applied, like A1).
-  Per-product clients stay during transition.
+- 🟡 **G1. Cognito groundwork.** Shared single client `futureready-web`, **confidential** (the broker is
+  server-side, so the secret lives only in the broker — proper BFF posture): `ALLOW_USER_PASSWORD_AUTH` +
+  `ALLOW_REFRESH_TOKEN_AUTH` for the broker's server-side flow; code OAuth + `auth.futureready.ai` callback
+  for federation. **DEV done 2026-05-31** (`2e4mfauktmb0jdd82qenc38btr`, secret in Secrets Manager — see
+  §2). **`auth(-dev).futureready.ai` ACM certs ISSUED** (us-east-1; §2 ACM) with Cloudflare validation
+  CNAMEs added. **Pending:** the `auth.` Cognito **custom domain** (created at the G5 swap, keeping branded
+  Managed Login there as federation hand-off + fallback); the **prod** client; and the
+  `terraform/modules/cognito` definition (human-applied, like A1). Per-product clients stay during transition.
 - ⬜ **G2. Auth broker (BFF) — API GW + Lambda, eu-north-1.** Server-side Cognito via **AWS SDK v3**
   (`InitiateAuth`/`RespondToAuthChallenge`/`ForgotPassword`/`ConfirmForgotPassword`/`AssociateSoftwareToken`/
   `VerifySoftwareToken`/refresh/`GlobalSignOut`). Endpoints: `/api/login`, `/api/mfa`, `/api/new-password`,
