@@ -1,0 +1,18 @@
+<svg width="640" height="820" viewBox="0 0 640 820" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="warm" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#FEFCF8"/>
+      <stop offset="100%" stop-color="#F3ECDF"/>
+    </linearGradient>
+    <filter id="grain2">
+      <feTurbulence type="fractalNoise" baseFrequency="1.05" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+  </defs>
+  <rect width="640" height="820" fill="url(#warm)"/>
+  <g fill="none" stroke="#C8451E" stroke-opacity="0.06">
+    <circle cx="600" cy="775" r="130"/>
+    <circle cx="600" cy="775" r="215"/>
+  </g>
+  <rect width="640" height="820" filter="url(#grain2)" opacity="0.022"/>
+</svg>

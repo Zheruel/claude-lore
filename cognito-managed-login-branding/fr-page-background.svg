@@ -1,0 +1,34 @@
+<svg width="1600" height="1000" viewBox="0 0 1600 1000" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="-3%" r="60%">
+      <stop offset="0%"   stop-color="#3A2C7A" stop-opacity="0.62"/>
+      <stop offset="30%"  stop-color="#2B2065" stop-opacity="0.32"/>
+      <stop offset="62%"  stop-color="#221A4F" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#1F1D2B" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vignette" cx="50%" cy="45%" r="72%">
+      <stop offset="50%"  stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.40"/>
+    </radialGradient>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="2" stitchTiles="stitch"/>
+      <feColorMatrix type="saturate" values="0"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="1000" fill="#1F1D2B"/>
+  <rect width="1600" height="1000" fill="url(#glow)"/>
+  <!-- editorial concentric ring motif, lower-right anchor -->
+  <g fill="none" stroke="#FFFFFF" stroke-opacity="0.06">
+    <circle cx="1410" cy="945" r="175"/>
+    <circle cx="1410" cy="945" r="300"/>
+    <circle cx="1410" cy="945" r="430"/>
+    <circle cx="1410" cy="945" r="565"/>
+  </g>
+  <!-- faint counter-anchor, upper-left, for compositional balance -->
+  <g fill="none" stroke="#FFFFFF" stroke-opacity="0.03">
+    <circle cx="80" cy="40" r="300"/>
+    <circle cx="80" cy="40" r="470"/>
+  </g>
+  <rect width="1600" height="1000" fill="url(#vignette)"/>
+  <rect width="1600" height="1000" filter="url(#grain)" opacity="0.05"/>
+</svg>

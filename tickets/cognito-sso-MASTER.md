@@ -48,8 +48,14 @@ NEVER the Cognito `sub`.** This is load-bearing — every lookup keys on `person
   1103-byte stub wired as PostConfirmation+PostAuthentication. The Terraform + Lambda source are
   removed in code (A1 done); the stub is still attached on the pools until `terraform apply` runs
   (human-reviewed). The Cognito→Supabase mirror now lives entirely in `cognito-session-exchange`.
-- ✅ `login.futureready.ai` = Cognito **Managed Login v1**, CloudFront `d20cuyja3hvanc.cloudfront.net`,
-  ACTIVE; `/oauth2/authorize` → 302 → `/login`. `login-dev.futureready.ai` = dev equivalent.
+- ✅ `login.futureready.ai` = Cognito **Managed Login v2 — BRANDED (B2 done 2026-05-31)**, CloudFront
+  `d20cuyja3hvanc.cloudfront.net`, ACTIVE; `/oauth2/authorize` → 302 → `/login`. `login-dev.futureready.ai`
+  = dev equivalent (`d2ec6ah5pcam1v`, also v2-branded). Both domains flipped **v1→v2**; CloudFront + DNS
+  unchanged.
+- ✅ **Future Ready branding on all 6 app clients** (palette + wordmark logo + favicon + atmospheric page
+  background + warm card; per §5-I). Branding ids — dev: QA `f0c90554`, Coaching `52a3c225`, Admin `3039a518`;
+  prod: QA `7ccbb4a4`, Coaching `8500e799`, Admin `4857c706`. Identical surface across all three products.
+  Reproducible source: `cognito-managed-login-branding/` (script + SVGs + settings + README).
 
 ### ACM (us-east-1)
 - ✅ `login.futureready.ai` ISSUED `cb17c532-7723-425a-9074-ce1307041807`
@@ -164,10 +170,13 @@ Legend: ✅ done · 🟡 partial/staged · ⬜ not started
 
 ### PHASE B — Branded Managed Login; retire the SPA
 - ✅ **B1. D1 decided → branded Managed Login.**
-- ⬜ **B2. Brand Cognito Managed Login v2** on the **dev** pool, then prod (logo, palette, CSS via
-  the branding editor/API; `unified-login.html` as design reference). Verify `login-dev.` then
-  `login.futureready.ai` show the brand and the products' OAuth2 redirect lands on it. **No frontend
-  rework** — products keep code+PKCE.
+- ✅ **B2. Brand Cognito Managed Login v2 — DONE (2026-05-31).** Flipped both domains v1→v2 and applied
+  branding to all 6 app clients via `create/update-managed-login-branding` (Future Ready palette, wordmark
+  logo, brand favicon, atmospheric deep-indigo page background + warm card; `unified-login.html` as design
+  reference). Verified `login-dev.` and `login.futureready.ai` render the brand (logo + palette + composed
+  dark field, indigo focus ring) and the products' OAuth2 redirect lands on it. **No frontend rework** —
+  products keep code+PKCE. Accepted tradeoff: ML v2 has **no custom-font control**, so Instrument Serif rides
+  on the logo only, not the "Sign in" heading. Source + rollback: `cognito-managed-login-branding/`.
 - ⬜ **B3. Delete the SPA entirely** (per D5): decommission the redundant infra built 2026-05-31
   (empty+delete S3 `future-ready-login-prod`, disable+delete CloudFront `E3RIXQF158R3Q8`, delete OAC
   `E2LEYS4HU0WGXE`), and archive/remove the `fr-unified-login` repo.
@@ -289,10 +298,20 @@ role) → Coaching. **Admin panel is never a switcher app.** Hide the waffle at 
 (QA shadcn/Radix; LMS Mantine). Role→apps matrix: `qa:agent`+`lms:member`→both; `qa:*` only→CI only;
 `lms:*` only→Coaching only.
 
-### §5-I. Branded Managed Login (Phase B2) — replaces the old "SPA at login.futureready.ai"
-Style the Cognito Managed Login v2 at `login.futureready.ai` (+ `login-dev`) via the branding editor:
-Future Ready logo, cream/indigo/coral palette, Instrument Serif + Geist, per `unified-login.html`.
-Products keep code+PKCE. No SPA, no path-routed CloudFront, no DNS cut.
+### §5-I. Branded Managed Login (Phase B2) — DONE 2026-05-31 — replaces the old "SPA at login.futureready.ai"
+Cognito Managed Login **v2** at `login.futureready.ai` (+ `login-dev`), branded per app client via
+`create/update-managed-login-branding` (CLI; additive + reversible via `delete-managed-login-branding`).
+Applied: Future Ready palette (cream/paper card, indigo-deep primary button → ink on hover, coral on link
+hover, ink/muted text, warm-taupe input borders); the **wordmark PNG** as FORM_LOGO (centered, in-card);
+brand FAVICON_SVG; an **atmospheric PAGE_BACKGROUND SVG** (deep-indigo `#1F1D2B` field + top-center radial
+glow + dual concentric-ring motif + fine grain + vignette) and a warm-gradient FORM_BACKGROUND; sharp 2–4px
+radii; `displayGraphics:false` (MFA/passkey screens stay on-brand, no AWS stock art); `colorSchemeMode:LIGHT`.
+Reproducible source: **`cognito-managed-login-branding/`** (`build_branding.py` + the two SVGs +
+`brand-settings.json` + README with clients, branding ids, re-apply, rollback). **Hard limit:** ML v2
+exposes no custom web fonts — Instrument Serif/Geist cannot apply to headings, so the serif identity lives
+in the logo image only. Products keep code+PKCE. No SPA, no path-routed CloudFront, no DNS cut. (Open item,
+not branding: hosted pages still show a self-signup "Create an account" link — disable at the pool level if
+enterprise SSO should hide it.)
 
 ### §5-J. Auto-tenant provisioning (Phase F) — former ticket 4, design intact
 Every integration call is QA-service→LMS-service (caller≠target always; no self-service). Replace
@@ -330,9 +349,9 @@ per-customer, after 2 weeks of zero legacy-path usage.
   stays commented, not deleted.
 
 ## 8. NEXT ACTIONS (live)
-1. **A1 mirror Lambda body** — biggest gap; everything QA depends on it. _Start here._
-2. **A2** deploy exchange fn (+ 3 secrets).
-3. **B2** brand Managed Login (dev→prod); **B3** delete SPA + redundant infra.
-4. Then **C** (LMS dev rehearsal) → **D** (prod window) → **E** (cleanup) → **F** (auto-provisioning).
+1. ~~A1 mirror Lambda~~ ✅ · ~~A2 exchange fn~~ ✅ · ~~B2 brand Managed Login (dev→prod)~~ ✅ — Phase A + B2 done.
+2. **B3** — delete the SPA + redundant infra (empty/delete S3 `future-ready-login-prod`, disable/delete
+   CloudFront `E3RIXQF158R3Q8`, delete OAC `E2LEYS4HU0WGXE`, archive `fr-unified-login` repo). _Start here._
+3. Then **C** (LMS dev rehearsal) → **D** (prod window) → **E** (cleanup) → **F** (auto-provisioning).
 - Housekeeping: **rotate the Cloudflare token** shared in the 2026-05-31 session (it's in that
   transcript).
