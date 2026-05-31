@@ -16,13 +16,16 @@ by probing prod.
 ## 1. WHAT WE'RE BUILDING (one paragraph)
 
 One identity for all Future Ready products. AWS Cognito (eu-north-1, one pool per env) is the
-upstream identity broker. Users sign in once at the **branded Cognito Managed Login** at
-`login.futureready.ai`; the `.futureready.ai` session cookie gives cross-product SSO. The **LMS
-backend** (`fr-website-backend`) becomes an OAuth2 resource server validating Cognito tokens.
-The **QA platform** keeps Supabase as its session/RLS substrate via a Cognito→Supabase **mirror
-Lambda** + a **`cognito-session-exchange`** edge function. A cross-product **app switcher**
-(waffle) is driven by one endpoint, `GET /api/users/me/apps`. After Phase 2 is live, **auto-tenant
-provisioning** (Phase 3) removes the manual `company_fr_config` bridge and the shared `FR_API_KEY`.
+upstream identity store, token issuer, federation broker, and groups source. Users sign in once at
+`login.futureready.ai` — **target surface: a custom Future Ready login SPA + thin token-handler
+broker in front of Cognito** (decision D1-B, §5-L); the **branded Cognito Managed Login (B2)** is the
+interim surface, the enterprise-federation hand-off, and the rollback fallback. The `.futureready.ai`
+session cookie gives cross-product SSO. The **LMS backend** (`fr-website-backend`) becomes an OAuth2
+resource server validating Cognito tokens. The **QA platform** keeps Supabase as its session/RLS
+substrate via the on-demand **`cognito-session-exchange`** edge function (no mirror Lambda — D9). A
+cross-product **app switcher** (waffle) is driven by one endpoint, `GET /api/users/me/apps`. After
+Phase 2 is live, **auto-tenant provisioning** removes the manual `company_fr_config` bridge and the
+shared `FR_API_KEY`.
 
 Identity is keyed on **`custom:person_uid` (== Supabase `auth.users.id` == `baseuser.person_uid`),
 NEVER the Cognito `sub`.** This is load-bearing — every lookup keys on `person_uid`.
@@ -103,12 +106,27 @@ NEVER the Cognito `sub`.** This is load-bearing — every lookup keys on `person
 
 ## 3. DECISIONS (all resolved — no open questions)
 
-- **D1 — Login surface → BRAND COGNITO MANAGED LOGIN (not a custom SPA).** AWS 2025 guidance
-  favors Managed Login + auth-code+PKCE for SPAs; the SPA's lib (`amazon-cognito-identity-js`) is
-  maintenance-only/deprecated; Managed Login v2 has a real branding editor (the SPA's reason to
-  exist is obsolete); and all three products are *already* coded for code+PKCE → zero frontend
-  rework. (Sources: AWS Security Blog "managed login vs custom UI"; Cognito Managed Login &
-  branding-editor docs; PKCE-in-auth-code docs; re:Post deprecation thread.)
+- **D1-A — (SUPERSEDED by D1-B) Login surface → brand Cognito Managed Login.** Original call:
+  Managed Login + code+PKCE to ship fast with zero frontend rework; the SPA's old lib
+  (`amazon-cognito-identity-js`) was deprecated. Still shipped (B2) and kept — but Managed Login's
+  branding editor cannot express a bespoke design (no custom fonts / no arbitrary HTML/CSS), so it is
+  now the **interim** surface, not the destination.
+- **D1-B — Login surface → CUSTOM FUTURE READY SPA + token-handler broker on Cognito (DECIDED
+  2026-05-31).** Build a custom SPA at `login.futureready.ai` (per `unified-login.html`) that
+  authenticates against Cognito directly (SRP via **Amplify Gen2 Auth** / AWS SDK v3 — *not* the
+  deprecated lib) for password users, and redirects to Cognito hosted federation for enterprise/social
+  users; a thin first-party **token-handler broker** holds the Cognito refresh token httpOnly on
+  `.futureready.ai` and hands products short-lived access tokens (silent SSO). Cognito stays the
+  identity/token/federation/groups backend untouched — only the UI + session layer is ours.
+  **Why over switching IdP (Auth0/Clerk/WorkOS):** the login problem is a *UI* problem; switching IdP
+  would re-platform the whole identity layer already built (backend resource server, `lms:*`/`qa:*`
+  groups, the `person_uid` spine, the QA mirror, invites, migrator, Phase F M2M), re-migrate every
+  user, cost more, and complicate EU data residency — disproportionate for prettier pixels. The custom
+  SPA gives full design freedom, keeps the Cognito investment, is contained to one domain, and is
+  reversible (repoint to Managed Login). **Tradeoff accepted:** we now own + must secure the broker and
+  every auth screen (MFA, reset, activation), and run one extra small service. Design in §5-L; runbook
+  in Phase G. (Revisit IdP-switch only if frictionless per-customer enterprise SSO at scale becomes a
+  core differentiator — and even then WorkOS can broker *in front of* Cognito without ripping it out.)
 - **D2 — Rehearsal → DEV FOR LMS, PROD-DIRECT FOR QA.** Stage the LMS halves (backend + both LMS
   frontends + dev pool + `login-dev`) end-to-end in dev; validate; then prod. QA has **no dev env**
   (Amplify, prod-only), so QA's cutover is validated by analogy from the LMS dev run + a scoped QA
@@ -118,12 +136,14 @@ NEVER the Cognito `sub`.** This is load-bearing — every lookup keys on `person
 - **D4 — Enterprise SAML/IdP federation → DEFERRED to a follow-up.** Ship the core Cognito cutover
   first; per-customer SAML is later Cognito config (no code change). The Managed Login surface and
   groups already support adding it without re-architecting.
-- **D5 — `fr-unified-login` SPA → DELETE ENTIRELY (repo + infra).** With branded Managed Login
-  owning every auth screen (sign-in, forgot/reset, activation/set-password, MFA-enroll) and the
-  product apps already owning non-auth profile management, the SPA has no remaining job. ⚠ Note:
-  the products' *own* forgot-password/activation/set-password pages also retire — those flows move
-  to Managed Login (and the LMS backend deletes their endpoints at cutover); only the *profile*
-  pages stay. The `unified-login.html` design may inform the Managed Login branding before delete.
+- **D5 — (REVISED by D1-B) `fr-unified-login` SPA → REVIVED as the custom login surface.** The earlier
+  call deleted it; D1-B brings it back. The repo was **archived, not hard-deleted** (B3), so
+  `gh repo unarchive FutureReadyAS/fr-unified-login` recovers it as the design/structure starting point
+  — but the **auth layer is rebuilt modern** (Amplify Gen2 Auth; drop `amazon-cognito-identity-js`). The
+  throwaway standalone infra deleted in B3 stays deleted; Phase G builds proper hosting. The products'
+  *own* forgot-password/activation/set-password pages still retire — those flows now move to the
+  **custom SPA** (not Managed Login), and the LMS backend still deletes their endpoints at cutover; only
+  the *profile* pages stay. `unified-login.html` is the SPA's design spec.
 - **D6 — Existing QA-only users → ONE-SHOT BACKFILL (Option A).** Use the existing
   `scripts/cognito-backfill/main.ts`; dry-run → apply in the QA cutover window; reconcile against
   the LMS migrator's ambiguous-email CSV so a dual-product human resolves to ONE Cognito identity.
@@ -170,7 +190,7 @@ Legend: ✅ done · 🟡 partial/staged · ⬜ not started
 - ✅ **A4. LMS backend bridge** (`/api/users/me`, `/api/users/me/apps`) deployed, dual-auth.
 - ✅ **A5. Supabase service-role key** present.
 
-### PHASE B — Branded Managed Login; retire the SPA
+### PHASE B — Branded Managed Login (interim surface); retire the throwaway SPA infra
 - ✅ **B1. D1 decided → branded Managed Login.**
 - ✅ **B2. Brand Cognito Managed Login v2 — DONE (2026-05-31).** Flipped both domains v1→v2 and applied
   branding to all 6 app clients via `create/update-managed-login-branding` (Future Ready palette, wordmark
@@ -229,6 +249,33 @@ Legend: ✅ done · 🟡 partial/staged · ⬜ not started
 - ⬜ **F4.** After 2 weeks of zero legacy-path usage per customer: drop `company_fr_config` table +
   `get_company_fr_config()` RPC (rename-first holding pattern), regenerate `types/database.ts`.
 - ⬜ **F5.** Remove `FR_API_KEY` + `ApiKeyAuthenticationFilter` globally (point of no return; last).
+
+### PHASE G — Custom Login SPA (parallel track; per D1-B / §5-L)
+Managed Login (B2) is the interim surface, so Phases C–F are **not blocked**; G swaps `login.futureready.ai`
+→ the custom SPA when ready (before or after the prod cutover — a product call). Each step is reversible
+(repoint `login.` to Managed Login).
+- ⬜ **G1. Cognito groundwork.** Add a shared first-party web app client `futureready-web` (SRP + refresh
+  for the password path; code+PKCE + an `auth.futureready.ai` callback for federation). Create the
+  `auth.futureready.ai` Cognito **custom domain** (ACM us-east-1) and keep branded Managed Login there as
+  the federation hand-off + fallback. Per-product clients stay during transition. (Decide single-shared
+  client vs per-product — §5-L key decisions.)
+- ⬜ **G2. Auth broker (BFF).** Stand up the token-handler in **eu-north-1** (API GW+Lambda / Lambda@Edge /
+  co-located with an existing backend): SRP + refresh + revoke against Cognito; sets the httpOnly
+  `Domain=.futureready.ai` refresh cookie; serves `/api/token` (CORS allowlist = product origins,
+  credentials), `/api/logout`, and the federation `callback` code-exchange. Refresh token never reaches
+  product JS.
+- ⬜ **G3. Login SPA.** `gh repo unarchive` `fr-unified-login`; rebuild the auth layer on **Amplify Gen2
+  Auth** (drop `amazon-cognito-identity-js`); implement every screen per `unified-login.html`: sign-in,
+  MFA challenge + TOTP enroll, NEW_PASSWORD_REQUIRED (activation / force-change), forgot/reset, and the
+  SSO-routing state (email-domain → "Continue to <IdP>"). Host on its own CloudFront/Amplify.
+- ⬜ **G4. Product reconfig (behind existing flags).** LMS coaching+admin and QA swap the §5-C/§5-F
+  "redirect to Managed Login + PKCE + store `localStorage.authToken`" for "call broker `/api/token`
+  (credentials include); on 401 → redirect to the login SPA." QA then runs `cognito-session-exchange`
+  →Supabase as today. LMS backend audience → the shared web client.
+- ⬜ **G5. Domain swap + verify.** Disassociate the Cognito custom domain from `login.futureready.ai`;
+  point `login.` DNS at the SPA's CloudFront. Verify all three products: silent SSO, password login,
+  enterprise-federation redirect, MFA, reset, logout-everywhere. Rollback = repoint `login.` to Managed
+  Login (re-add the Cognito custom domain on `login.`).
 
 ---
 
@@ -302,7 +349,7 @@ role) → Coaching. **Admin panel is never a switcher app.** Hide the waffle at 
 (QA shadcn/Radix; LMS Mantine). Role→apps matrix: `qa:agent`+`lms:member`→both; `qa:*` only→CI only;
 `lms:*` only→Coaching only.
 
-### §5-I. Branded Managed Login (Phase B2) — DONE 2026-05-31 — replaces the old "SPA at login.futureready.ai"
+### §5-I. Branded Managed Login (Phase B2) — DONE 2026-05-31 — now the INTERIM surface + federation hand-off + fallback (destination superseded by the custom SPA, D1-B/§5-L)
 Cognito Managed Login **v2** at `login.futureready.ai` (+ `login-dev`), branded per app client via
 `create/update-managed-login-branding` (CLI; additive + reversible via `delete-managed-login-branding`).
 Applied: Future Ready palette (cream/paper card, indigo-deep primary button → ink on hover, coral on link
@@ -315,7 +362,9 @@ Reproducible source: **`cognito-managed-login-branding/`** (`build_branding.py` 
 exposes no custom web fonts — Instrument Serif/Geist cannot apply to headings, so the serif identity lives
 in the logo image only. Products keep code+PKCE. No SPA, no path-routed CloudFront, no DNS cut. (Open item,
 not branding: hosted pages still show a self-signup "Create an account" link — disable at the pool level if
-enterprise SSO should hide it.)
+enterprise SSO should hide it.) Under **D1-B** this is no longer the destination: once the custom SPA
+(Phase G/§5-L) takes `login.`, Managed Login moves to `auth.futureready.ai` as the enterprise-federation
+hand-off + rollback fallback — so the B2 work is repurposed, not wasted.
 
 ### §5-J. Auto-tenant provisioning (Phase F) — former ticket 4, design intact
 Every integration call is QA-service→LMS-service (caller≠target always; no self-service). Replace
@@ -337,6 +386,41 @@ per-customer, after 2 weeks of zero legacy-path usage.
   existing QA user, `custom:person_uid = auth.users.id`, add `qa:<role>`; on `UsernameExists` with
   matching `person_uid` → group-merge (one identity), mismatch → CSV. Dry-run default.
 
+### §5-L. Custom Login SPA + token-handler broker (Phase G / decision D1-B)
+**Shape.** `login.futureready.ai` = a custom Future Ready **SPA (UI)** + a thin first-party
+**token-handler broker (BFF)**. Cognito is unchanged underneath: identity store, token issuer,
+federation broker, groups source. We own only the UI + session layer.
+**Auth flows.**
+- *Password:* SPA → Cognito `InitiateAuth` USER_SRP_AUTH (Amplify Gen2 Auth / SDK v3) → custom screens
+  for MFA / NEW_PASSWORD_REQUIRED → Cognito tokens.
+- *Enterprise/social:* SPA detects the email domain → redirects to
+  `auth.futureready.ai/oauth2/authorize?identity_provider=<X>&redirect_uri=<SPA callback>` → IdP auth →
+  code back to the SPA → broker exchanges (PKCE) at `auth./oauth2/token`. Branded Managed Login (B2) is
+  the brief on-brand surface here + the fallback.
+- *Silent SSO:* broker holds the Cognito refresh token httpOnly in a `Domain=.futureready.ai` cookie.
+  Product on load → `login.futureready.ai/api/token` (credentials: include) → fresh short-lived
+  access/id token, or 401 → product redirects to SPA `/?return_to=<product>`.
+- *Refresh / logout:* broker refreshes server-side (access tokens short-lived; refresh never in JS);
+  `/api/logout` clears the cookie + Cognito `RevokeToken`/`GlobalSignOut` → single logout everywhere.
+**Domain split.** SPA takes `login.futureready.ai`; Cognito hosted endpoints move to
+`auth.futureready.ai` (federation hand-off + Managed Login fallback). Disassociate the Cognito custom
+domain from `login.`, re-create at `auth.`; ACM `auth.` cert in us-east-1.
+**Why the broker (not tokens-in-localStorage).** httpOnly refresh on `.futureready.ai` = no long-lived
+token in JS (an upgrade over today's `localStorage.authToken`) + silent cross-product SSO without
+Cognito's hosted cookie. The broker is the only new moving part.
+**Per-service impact.** *New:* broker (eu-north-1) + login SPA (revived `fr-unified-login`, Amplify Gen2
+Auth). *Changed:* the 3 frontends' token acquisition (flag-gated; §5-C/§5-F) and LMS backend audience =
+the shared web client. *Unchanged:* `cognito-session-exchange`, groups, app switcher, migrator, Phase F.
+**Key plan-mode decisions.** (1) Single shared `futureready-web` client — *recommended*: Cognito refresh
+tokens are client-bound, so one client = one session serving all products; groups are user-bound so
+authz is unaffected — vs per-product clients. (2) Broker hosting: API GW+Lambda vs Lambda@Edge vs extend
+LMS backend vs Supabase edge fn (must be on `.futureready.ai`, EU region). (3) Auth lib: Amplify Gen2
+Auth (wraps SRP + all challenges, maintained) vs hand-rolled SDK v3. (4) Token delivery: token-handler /
+BFF (*recommended*) vs a faster-but-weaker v1 with tokens in fragment/storage.
+**Sequencing & rollback.** Parallel to C–F; Managed Login stays interim so nothing is blocked; swap
+`login.`→SPA when ready. Rollback: repoint `login.` to Managed Login (re-add the Cognito custom domain);
+keep the web client + `auth.` domain regardless.
+
 ---
 
 ## 6. FOLLOW-UPS (explicitly out of this initiative; future tickets)
@@ -348,6 +432,9 @@ per-customer, after 2 weeks of zero legacy-path usage.
 ## 7. ROLLBACK
 - **Login surface:** if B2 ever repointed anything, DNS `login.futureready.ai` → `d20cuyja3hvanc`
   restores current Managed Login (we're staying on Cognito, so low risk).
+- **Custom login SPA (Phase G):** repoint `login.futureready.ai` DNS to Managed Login / re-add the Cognito
+  custom domain on `login.` → instant fallback to the branded hosted UI; the shared web client and
+  `auth.futureready.ai` stay in place. Products that moved to the broker `/api/token` can flag back.
 - **Frontends:** flip flags back to `jwt`/`supabase`, rebuild/redeploy.
 - **Backend (D4-run):** the only hard-to-revert step — keep the revert PR staged; legacy Terraform
   stays commented, not deleted.
@@ -358,5 +445,8 @@ per-customer, after 2 weeks of zero legacy-path usage.
    (`VITE_AUTH_MODE=cognito`, `VITE_APP_SWITCHER_ENABLED=true`) with **dev** client ids, rebuild dev, run
    end-to-end (sign in → Coaching dev → app switcher → Admin dev; confirm dual-auth backend). _Start here._
 3. Then **D** (prod window) → **E** (cleanup) → **F** (auto-provisioning).
+4. **Phase G — custom login SPA** (per D1-B/§5-L) runs as a **parallel track**: it does *not* block C–F
+   (Managed Login is the interim surface). Kick off whenever: G1 Cognito groundwork → G2 broker → G3 SPA →
+   G4 product reconfig → G5 swap `login.`. Recommend starting G1+G2 alongside C.
 - Housekeeping: **rotate the Cloudflare token** shared in the 2026-05-31 session (it's in that
   transcript).
