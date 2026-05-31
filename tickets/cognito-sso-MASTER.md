@@ -111,6 +111,19 @@ NEVER the Cognito `sub`.** This is load-bearing — every lookup keys on `person
   (NoSuchDistribution / NoSuchOriginAccessControl / bucket 404). Was safe: dist had `Aliases:0` and DNS
   for `login.` stays on the Cognito dist `d20cuyja3hvanc`, so nothing pointed at it.
 
+### Custom login (D1-B) — DEV DEPLOY LIVE & e2e-VERIFIED (2026-05-31)
+- ✅ **Login SPA** at `signin-dev.futureready.ai` — S3 `futureready-signin-dev` + CloudFront
+  `E9T9TWEB1188U` (OAC `E3I7L501P05QD6`), ACM `signin-dev` us-east-1 `eb862936`. Redesigned, broker-backed.
+- ✅ **Auth broker** at `broker-dev.futureready.ai` — API GW HTTP API `3qqzl4et83` custom domain + `$default`
+  mapping, ACM `broker-dev` eu-north-1 `7fc13be5`, Lambda `fr-auth-broker-dev`. CORS allows the SPA origin.
+- ✅ **Cognito federation** stays at `login-dev.futureready.ai` (untouched); dev shared client
+  `futureready-web-dev` = `2e4mfauktmb0jdd82qenc38btr`.
+- ✅ **Live browser e2e PASSED**: signin-dev → password login → broker `/api/login` (CORS+credentials) →
+  httpOnly `.futureready.ai` cookie → redirect to `return_to`. (Earlier curl e2e proved
+  login→`/api/token`→logout-revoke.) Dev test user `demo@futureready.ai`. Landing on `qa.futureready.ai/login`
+  is expected — QA isn't broker-cut-over yet (G4).
+- ⚠ `signin-dev`/`broker-dev` are **throwaway dev domains**; prod uses `login.`/`auth.` via Terraform (G1/G5).
+
 ---
 
 ## 3. DECISIONS (all resolved — no open questions)
